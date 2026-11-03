@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draw the Map Area</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .vertex {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      background: var(--navy);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+
+    .vertex.first {
+      background: var(--gold);
+    }
+
+    .midpoint {
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--navy);
+      border-radius: 50%;
+      background: #ffffff;
+      opacity: 0.8;
+    }
+
+    .panel ol {
+      margin: 0 0 12px;
+      padding-left: 18px;
+    }
+
+    .panel li {
+      margin-bottom: 4px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .buttons .wide {
+      grid-column: 1 / -1;
+    }
+
+    button.secondary {
+      color: var(--navy);
+      background: #e8ecf4;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Draw the map area</h1>
+    <p>Everything outside this shape is gray in UCSD MicroMap</p>
+  </header>
+
+  <div class="map-wrap">
+    <main id="map" aria-label="Map for drawing the area"></main>
+
+    <aside class="panel" aria-label="Drawing controls">
+      <p id="status" class="status" role="status" aria-live="polite">Loading the current area…</p>
+      <ol>
+        <li>Drag a corner to move it.</li>
+        <li>Drag or click a white dot to add a corner.</li>
+        <li>Click a corner to remove it.</li>
+        <li>To draw a new shape, click <b>Start over</b>. Then click the map for each corner.
+          Click the gold corner to close the shape.</li>
+      </ol>
+      <div class="buttons">
+        <button id="undo" type="button" class="secondary">Undo</button>
+        <button id="restart" type="button" class="secondary">Start over</button>
+        <button id="download" type="button" class="wide">Download area.json</button>
+      </div>
+      <p class="help">Put the file in the <code>data/</code> folder of the project.
+        Then build the graph and the places again.</p>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module">
+    import { loadArea, ringToGeoJSON } from '../js/area.js';
+
+    const statusEl = document.getElementById('status');
+    const ui = {
+      undo: document.getElementById('undo'),
+      restart: document.getElementById('restart'),
+      download: document.getElementById('download'),
+    };
+
+    const map = L.map('map', { zoomSnap: 0.5 });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    let ring = await loadArea('../data/area.json'); // [[lat, lon], ...]
+    let closed = true; // false while a new shape is drawn
+    const history = [];
+    const layer = L.layerGroup().addTo(map);
+    map.fitBounds(ring, { paddingBottomRight: [330, 0] });
+
+    const icon = (className) => L.divIcon({ className: '', html: `<div class="${className}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+
+    function save() {
+      history.push({ ring: ring.map((p) => [...p]), closed });
+    }
+
+    function areaKm2() {
+      // Shoelace formula on a local flat projection. Good enough for a few km.
+      const lat0 = ring.reduce((sum, [lat]) => sum + lat, 0) / ring.length;
+      const kx = 111.32 * Math.cos((lat0 * Math.PI) / 180);
+      let sum = 0;
+      ring.forEach(([lat, lon], i) => {
+        const [lat2, lon2] = ring[(i + 1) % ring.length];
+        sum += lon * kx * lat2 * 110.57 - lon2 * kx * lat * 110.57;
+      });
+      return Math.abs(sum / 2);
+    }
+
+    function draw() {
+      layer.clearLayers();
+      if (ring.length >= 3 && closed) {
+        const world = [[-89, -360], [89, -360], [89, 360], [-89, 360]];
+        L.polygon([world, ring], { stroke: false, fillColor: '#c9cdd2', fillOpacity: 0.6, interactive: false }).addTo(layer);
+        L.polygon(ring, { color: '#182b49', weight: 2, fill: false, interactive: false }).addTo(layer);
+      } else if (ring.length >= 2) {
+        L.polyline(ring, { color: '#182b49', weight: 2, dashArray: '6 6', interactive: false }).addTo(layer);
+      }
+
+      ring.forEach((point, i) => {
+        const marker = L.marker(point, {
+          icon: icon(i === 0 && !closed ? 'vertex first' : 'vertex'),
+          draggable: true,
+          title: i === 0 && !closed ? 'Click to close the shape' : 'Drag to move. Click to remove.',
+        }).addTo(layer);
+        marker.on('dragstart', save);
+        marker.on('drag', (event) => {
+          ring[i] = [event.latlng.lat, event.latlng.lng];
+        });
+        marker.on('dragend', draw);
+        marker.on('click', () => {
+          if (!closed && i === 0 && ring.length >= 3) {
+            save();
+            closed = true;
+          } else if (closed && ring.length > 3) {
+            save();
+            ring.splice(i, 1);
+          }
+          draw();
+        });
+      });
+
+      if (closed) {
+        ring.forEach((point, i) => {
+          const next = ring[(i + 1) % ring.length];
+          const mid = [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2];
+          const handle = L.marker(mid, { icon: icon('midpoint'), draggable: true, title: 'Drag or click to add a corner' }).addTo(layer);
+          const insert = (latlng) => {
+            save();
+            ring.splice(i + 1, 0, [latlng.lat, latlng.lng]);
+            draw();
+          };
+          handle.on('click', () => insert(handle.getLatLng()));
+          handle.on('dragend', () => insert(handle.getLatLng()));
+        });
+      }
+
+      ui.download.disabled = !closed || ring.length < 3;
+      ui.undo.disabled = history.length === 0;
+      statusEl.textContent = closed
+        ? `${ring.length} corners, ${areaKm2().toFixed(1)} km². Download the file when you are done.`
+        : `${ring.length} corners. Click the map to add a corner.`;
+    }
+
+    map.on('click', (event) => {
+      if (!closed) {
+        save();
+        ring.push([event.latlng.lat, event.latlng.lng]);
+        draw();
+      }
+    });
+
+    ui.undo.addEventListener('click', () => {
+      const last = history.pop();
+      if (last) {
+        ({ ring, closed } = last);
+        draw();
+      }
+    });
+
+    ui.restart.addEventListener('click', () => {
+      save();
+      ring = [];
+      closed = false;
+      draw();
+    });
+
+    ui.download.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(ringToGeoJSON(ring), null, 2) + '\n'], { type: 'application/geo+json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'area.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    draw();
+  </script>
+</body>
+</html>

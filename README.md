@@ -32,6 +32,17 @@ node scripts/test_search.mjs
 The build downloads the OSM streets (about 2–3 minutes) and writes `data/graph.json`.
 `build_places.py` writes `data/places.json`, the places for the From and To search boxes.
 
+## Change the map area
+
+Everything outside the area in [data/area.json](data/area.json) is gray, and the
+routes and the search stay inside it.
+
+1. Start the local server and open http://localhost:8000/tools/draw-area.html.
+2. Change the shape, or click **Start over** and draw a new one.
+3. Click **Download area.json** and put the file in `data/`. Replace the old file.
+4. Run `scripts/build_graph.py` and `scripts/build_places.py` again.
+5. Run the tests, then commit the three data files.
+
 ## Add a UCSD building code
 
 OSM has codes for only a few campus buildings. To add a code, add a line to

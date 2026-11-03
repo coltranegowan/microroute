@@ -15,14 +15,21 @@ from datetime import date
 from pathlib import Path
 
 import osmnx as ox
+from shapely.geometry import shape
 
 from lts import lts
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "data" / "graph.json"
 
-# Same box as STUDY_AREA in js/map.js: (west, south, east, north).
-BBOX = (-117.258, 32.847, -117.180, 32.895)
+# The usable area, drawn with tools/draw-area.html. The app uses the same file.
+AREA_FILE = ROOT / "data" / "area.json"
+
+
+def load_area():
+    """Return the area as a shapely Polygon (x = longitude, y = latitude)."""
+    feature = json.loads(AREA_FILE.read_text())
+    return shape(feature.get("geometry", feature))
 
 # Tags that lts.py needs, in addition to the osmnx defaults.
 EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface"]
@@ -36,7 +43,7 @@ FOOTWAYS_FOR_BIKES = '["highway"~"footway|pedestrian"]["area"!~"yes"]["bicycle"~
 def download():
     ox.settings.useful_tags_way = list(dict.fromkeys(ox.settings.useful_tags_way + EXTRA_TAGS))
     ox.settings.cache_folder = str(ROOT / "cache")
-    graph = ox.graph_from_bbox(BBOX, custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES])
+    graph = ox.graph_from_polygon(load_area(), custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES])
     # Keep only the part where every node can reach every other node.
     # Otherwise A* can start in a piece that has no route out.
     return ox.truncate.largest_component(graph, strongly=True)
@@ -47,6 +54,7 @@ def point(lon, lat):
 
 
 def to_json(graph):
+    west, south, east, north = load_area().bounds
     nodes = {str(n): point(d["x"], d["y"]) for n, d in graph.nodes(data=True)}
 
     edges = []
@@ -72,7 +80,8 @@ def to_json(graph):
         "meta": {
             "built": date.today().isoformat(),
             "source": "OpenStreetMap contributors (ODbL)",
-            "bbox": {"west": BBOX[0], "south": BBOX[1], "east": BBOX[2], "north": BBOX[3]},
+            "area": "data/area.json",
+            "bbox": {"west": west, "south": south, "east": east, "north": north},
             "stress": "LTS 1-4, simplified from Mekuria, Furth and Nixon (2012). See scripts/lts.py.",
             "lengthUnit": "m",
             "nodeCount": len(nodes),

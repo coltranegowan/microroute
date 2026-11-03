@@ -1,13 +1,5 @@
 // Leaflet map setup. Leaflet loads as the global `L` from index.html.
 
-// Bounding box of the study area: UC San Diego, University City and La Jolla Shores,
-// from Torrey Pines south to Rose Canyon and from the coast east to I-805.
-// [[south, west], [north, east]]
-export const STUDY_AREA = [
-  [32.847, -117.258],
-  [32.895, -117.180],
-];
-
 // The same colors as --lts1 to --lts4 in css/style.css.
 const LTS_COLOR = {
   1: '#2166ac',
@@ -16,10 +8,11 @@ const LTS_COLOR = {
   4: '#b2182b',
 };
 
+// area: the outline of the usable area, [[lat, lon], ...], from js/area.js.
 // panel: an element over the map, for example the route panel. The first view
-// keeps the study area out from under it.
-export function createMap(elementId, panel = null) {
-  // zoomSnap 0.5 lets the first view fit the study area more closely.
+// keeps the area out from under it.
+export function createMap(elementId, area, panel = null) {
+  // zoomSnap 0.5 lets the first view fit the area more closely.
   const map = L.map(elementId, { zoomSnap: 0.5 });
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -27,16 +20,27 @@ export function createMap(elementId, panel = null) {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
-  L.rectangle(STUDY_AREA, {
+  addAreaMask(map, area);
+  fitWithPanel(map, L.latLngBounds(area), panel);
+  return map;
+}
+
+// Cover all of the map outside the area with gray. The mask is a polygon with
+// a hole: the outer ring goes around the world, and the area is the hole.
+function addAreaMask(map, area) {
+  const world = [[-89, -360], [89, -360], [89, 360], [-89, 360]];
+  L.polygon([world, area], {
+    stroke: false,
+    fillColor: '#c9cdd2',
+    fillOpacity: 1,
+    interactive: false,
+  }).addTo(map);
+  L.polygon(area, {
     color: '#182b49',
     weight: 2,
-    dashArray: '6 6',
     fill: false,
     interactive: false,
   }).addTo(map);
-
-  fitWithPanel(map, STUDY_AREA, panel);
-  return map;
 }
 
 // Fit the map to bounds, for example a route, and keep them out from under the panel.

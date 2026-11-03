@@ -1,4 +1,5 @@
 // Entry point. Connects the map, routing, search, voice and reports parts.
+import { insideArea, loadArea } from './area.js';
 import { createMap, createPin, drawRoute, fitWithPanel } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
@@ -6,9 +7,11 @@ import { attachAutocomplete, loadPlaces } from './search.js';
 // A point that is farther than this from the nearest street is outside the map data.
 const MAX_SNAP_M = 300;
 const MAP_POINT = 'Point on the map';
+const OUTSIDE = 'That point is outside the map area. Pick a point that is not gray.';
 
 const panel = document.querySelector('.panel');
-const map = createMap('map', panel);
+const area = await loadArea();
+const map = createMap('map', area, panel);
 
 const ui = {
   status: document.getElementById('status'),
@@ -70,6 +73,9 @@ function clearAll() {
 // Find the street node for a marker. Returns null if the marker is too far from all streets.
 function snap(marker) {
   const { lat, lng } = marker.getLatLng();
+  if (!insideArea(area, lat, lng)) {
+    return null;
+  }
   const node = nearestNode(state.graph, lat, lng);
   return distance(lat, lng, node.lat, node.lon) <= MAX_SNAP_M ? node : null;
 }
@@ -84,7 +90,7 @@ function updateRoute({ fit = false } = {}) {
   const from = snap(state.start);
   const to = snap(state.end);
   if (!from || !to) {
-    setStatus('A point is outside the map data. Move it inside the dashed box.', true);
+    setStatus(OUTSIDE, true);
     return;
   }
   if (from.id === to.id) {
@@ -134,6 +140,10 @@ function setPin(kind, latlng, title) {
 
 function onMapClick(event) {
   if (!state.graph) {
+    return;
+  }
+  if (!insideArea(area, event.latlng.lat, event.latlng.lng)) {
+    setStatus(OUTSIDE, true);
     return;
   }
   if (!state.start) {

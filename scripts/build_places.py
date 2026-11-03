@@ -4,7 +4,7 @@ Run from the project root:
     .venv/bin/python scripts/build_places.py
 
 The script gets the named buildings and the named places (libraries,
-schools, parks, beaches, malls and more) in the study area from OSM. Then
+schools, parks, beaches, malls and more) in the area (data/area.json) from OSM. Then
 it adds the UCSD building codes from data/building_codes.csv. OSM has
 codes for only a few buildings, so the team keeps the CSV file.
 
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import osmnx as ox
 
-from build_graph import BBOX, ROOT
+from build_graph import ROOT, load_area
 
 CODES_CSV = ROOT / "data" / "building_codes.csv"
 OUTPUT = ROOT / "data" / "places.json"
@@ -58,8 +58,11 @@ def kind(row):
 
 def download():
     ox.settings.cache_folder = str(ROOT / "cache")
-    features = ox.features_from_bbox(BBOX, TAGS)
-    return features[features["name"].notna()]
+    area = load_area()
+    features = ox.features_from_polygon(area, TAGS)
+    features = features[features["name"].notna()]
+    # OSM gives a feature that crosses the edge. Keep it only if its point is inside.
+    return features[features.geometry.representative_point().within(area)]
 
 
 def read_codes():
