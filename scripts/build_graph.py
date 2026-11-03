@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "data" / "graph.json"
 
 # Same box as STUDY_AREA in js/map.js: (west, south, east, north).
-BBOX = (-117.262, 32.845, -117.195, 32.895)
+BBOX = (-117.280, 32.830, -117.170, 32.895)
 
 # Tags that lts.py needs, in addition to the osmnx defaults.
 EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface"]

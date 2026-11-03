@@ -1,10 +1,11 @@
 // Leaflet map setup. Leaflet loads as the global `L` from index.html.
 
-// Bounding box of the study area: UC San Diego, University City and La Jolla Shores.
+// Bounding box of the study area: UC San Diego, University City and La Jolla Shores,
+// south to La Jolla High School and east to the I-805 / SR 52 interchange.
 // [[south, west], [north, east]]
 export const STUDY_AREA = [
-  [32.845, -117.262],
-  [32.895, -117.195],
+  [32.830, -117.280],
+  [32.895, -117.170],
 ];
 
 export function createMap(elementId) {
