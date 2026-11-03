@@ -139,17 +139,26 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
 
   const lengthByLts = { 1: 0, 2: 0, 3: 0, 4: 0 };
   const points = [];
+  const segments = [];
   for (const edge of edges) {
     lengthByLts[edge.lts] += edge.length;
     const line = edgePoints(graph, edge);
     // The first point of each edge is the last point of the edge before it.
     points.push(...(points.length ? line.slice(1) : line));
+
+    const last = segments[segments.length - 1];
+    if (last && last.lts === edge.lts) {
+      last.points.push(...line.slice(1));
+    } else {
+      segments.push({ lts: edge.lts, points: [...line] });
+    }
   }
   const length = edges.reduce((sum, edge) => sum + edge.length, 0);
 
   return {
     edges,
     points, // [[lat, lon], ...] for a Leaflet polyline
+    segments, // [{ lts, points }, ...]: runs of edges with the same LTS level
     length, // m
     time: length / speed, // s, with no traffic or slope
     cost,

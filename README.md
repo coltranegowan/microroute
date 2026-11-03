@@ -15,7 +15,7 @@ The page uses ES modules, so open it through a local server, not `file://`:
 python3 -m http.server
 ```
 
-Then open http://localhost:8000.
+Then open http://localhost:8000. Click the map to set the start (A), then click again to set the end (B).
 
 ## Build the street graph
 
@@ -23,6 +23,7 @@ Then open http://localhost:8000.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/test_lts.py
+node scripts/test_routing.mjs
 .venv/bin/python scripts/build_graph.py
 ```
 

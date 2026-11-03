@@ -1,3 +1,18 @@
+:root {
+  --navy: #182b49; /* UCSD navy */
+  --gold: #ffcd00; /* UCSD gold */
+  --text: #1a1a1a;
+  --muted: #555555;
+  --panel-bg: #ffffff;
+  --border: #d0d4dc;
+
+  /* Stress colors: a blue-to-red scale that most colorblind riders can read. */
+  --lts1: #2166ac;
+  --lts2: #67a9cf;
+  --lts3: #ef8a62;
+  --lts4: #b2182b;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -13,12 +28,12 @@ body {
   flex-direction: column;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: #ffffff;
-  color: #1a1a1a;
+  color: var(--text);
 }
 
 .topbar {
   padding: 8px 16px;
-  background: #182b49; /* UCSD navy */
+  background: var(--navy);
   color: #ffffff;
 }
 
@@ -30,10 +45,182 @@ body {
 .topbar p {
   margin: 2px 0 0;
   font-size: 0.875rem;
-  color: #ffcd00; /* UCSD gold */
+  color: var(--gold);
+}
+
+.map-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 #map {
+  position: absolute;
+  inset: 0;
+}
+
+/* Route panel */
+
+.panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000; /* above the Leaflet panes */
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  font-size: 0.9rem;
+}
+
+.status {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.status.error {
+  color: var(--lts4);
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field > label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+select {
+  width: 100%;
+  padding: 6px;
+  font: inherit;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.slider-row input {
   flex: 1;
-  min-height: 0;
+  accent-color: var(--navy);
+}
+
+.help {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.summary[hidden] {
+  display: none;
+}
+
+.summary dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.summary dd {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+}
+
+.swatch {
+  display: inline-block;
+  width: 24px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.swatch.lts1 { background: var(--lts1); }
+.swatch.lts2 { background: var(--lts2); }
+.swatch.lts3 { background: var(--lts3); }
+.swatch.lts4 { background: var(--lts4); }
+
+button {
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--navy);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #9aa3b2;
+  cursor: default;
+}
+
+/* Start and end markers */
+
+.pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.pin.start { background: var(--navy); }
+.pin.end { background: #000000; color: var(--gold); }
+
+/* Phone: the panel goes to the bottom of the map. */
+@media (max-width: 600px) {
+  .panel {
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+    max-height: 45%;
+  }
+
+  .legend {
+    display: none;
+  }
 }
