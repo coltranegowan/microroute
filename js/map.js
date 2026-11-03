@@ -1,18 +1,15 @@
 // Leaflet map setup. Leaflet loads as the global `L` from index.html.
 
 // Bounding box of the study area: UC San Diego, University City and La Jolla Shores,
-// south to La Jolla High School and east to the I-805 / SR 52 interchange.
+// from Torrey Pines south to Rose Canyon and from the coast east to I-805.
 // [[south, west], [north, east]]
 export const STUDY_AREA = [
-  [32.830, -117.280],
-  [32.895, -117.170],
+  [32.847, -117.258],
+  [32.895, -117.180],
 ];
 
 export function createMap(elementId) {
-  const map = L.map(elementId, {
-    maxBounds: L.latLngBounds(STUDY_AREA).pad(0.5),
-    minZoom: 13,
-  });
+  const map = L.map(elementId);
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
