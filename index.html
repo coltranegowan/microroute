@@ -21,6 +21,22 @@
     <aside class="panel" aria-label="Route controls">
       <p id="status" class="status" role="status" aria-live="polite">Loading the street map…</p>
 
+      <div class="field search">
+        <label for="from"><span class="pin-key start">A</span> From</label>
+        <input id="from" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="from-list" autocomplete="off" spellcheck="false"
+               placeholder="Building, room or place, e.g. CSB 001">
+        <ul id="from-list" class="suggestions" role="listbox" aria-label="From suggestions" hidden></ul>
+      </div>
+
+      <div class="field search">
+        <label for="to"><span class="pin-key end">B</span> To</label>
+        <input id="to" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="to-list" autocomplete="off" spellcheck="false"
+               placeholder="Building, room or place, e.g. Geisel">
+        <ul id="to-list" class="suggestions" role="listbox" aria-label="To suggestions" hidden></ul>
+      </div>
+
       <div class="field">
         <label for="mode">Mode</label>
         <select id="mode">

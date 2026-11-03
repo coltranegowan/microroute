@@ -96,10 +96,68 @@ body {
   font-weight: 600;
 }
 
-select {
+select,
+.search input {
   width: 100%;
   padding: 6px;
   font: inherit;
+}
+
+.search input {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.search input:focus {
+  outline: 2px solid var(--navy);
+  outline-offset: -1px;
+}
+
+.pin-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  color: #ffffff;
+  vertical-align: 1px;
+}
+
+.pin-key.start { background: var(--navy); }
+.pin-key.end { background: #000000; color: var(--gold); }
+
+/* The list is in the normal flow, so the panel does not clip it. */
+.suggestions {
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+}
+
+.suggestions li {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.suggestions li[aria-selected="true"] {
+  background: #e8ecf4;
+}
+
+.suggestion-name {
+  font-weight: 600;
+}
+
+.suggestion-detail {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .slider-row {
@@ -216,9 +274,15 @@ button:disabled {
     right: 16px;
     bottom: 16px;
     left: 16px;
+    display: flex;
+    flex-direction: column;
     width: auto;
     max-height: 45%;
   }
+
+  /* Show the status and the route result first, above the search boxes. */
+  .status { order: -2; }
+  .summary { order: -1; border-top: 0; padding-top: 0; }
 
   .legend {
     display: none;

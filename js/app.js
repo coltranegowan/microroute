@@ -1,14 +1,21 @@
-// Entry point. Connects the map, routing, voice and reports parts.
-import { createMap, createPin, drawRoute } from './map.js';
+// Entry point. Connects the map, routing, search, voice and reports parts.
+import { createMap, createPin, drawRoute, fitWithPanel } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
+import { attachAutocomplete, loadPlaces } from './search.js';
 
-// A click that is farther than this from the nearest street is outside the map data.
+// A point that is farther than this from the nearest street is outside the map data.
 const MAX_SNAP_M = 300;
+const MAP_POINT = 'Point on the map';
 
-const map = createMap('map', document.querySelector('.panel'));
+const panel = document.querySelector('.panel');
+const map = createMap('map', panel);
 
 const ui = {
   status: document.getElementById('status'),
+  from: document.getElementById('from'),
+  fromList: document.getElementById('from-list'),
+  to: document.getElementById('to'),
+  toList: document.getElementById('to-list'),
   mode: document.getElementById('mode'),
   safety: document.getElementById('safety'),
   summary: document.getElementById('summary'),
@@ -20,6 +27,7 @@ const ui = {
 
 const state = {
   graph: null,
+  places: null,
   start: null, // Leaflet marker
   end: null, // Leaflet marker
   routeLayer: null,
@@ -53,8 +61,10 @@ function clearAll() {
   state.end?.remove();
   state.start = null;
   state.end = null;
+  ui.from.value = '';
+  ui.to.value = '';
   ui.clear.disabled = true;
-  setStatus('Click the map to set the start.');
+  setStatus('Search for a place, or click the map to set the start.');
 }
 
 // Find the street node for a marker. Returns null if the marker is too far from all streets.
@@ -64,7 +74,8 @@ function snap(marker) {
   return distance(lat, lng, node.lat, node.lon) <= MAX_SNAP_M ? node : null;
 }
 
-function updateRoute() {
+// fit: true moves the map to show the route, after a search.
+function updateRoute({ fit = false } = {}) {
   clearRoute();
   if (!state.start || !state.end) {
     return;
@@ -97,12 +108,28 @@ function updateRoute() {
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
   setStatus('Drag A or B to change the route.');
+  // Fit after the summary shows, because the summary changes the panel height.
+  if (fit) {
+    fitWithPanel(map, L.latLngBounds(route.points), panel, { maxZoom: 17 });
+  }
 }
 
-function addPin(latlng, kind) {
-  const pin = createPin(latlng, kind).addTo(map);
-  pin.on('dragend', updateRoute);
-  return pin;
+// Put pin A (kind 'start') or pin B (kind 'end') at a point. A pin that is already there moves.
+function setPin(kind, latlng, title) {
+  const key = kind === 'start' ? 'start' : 'end';
+  const input = kind === 'start' ? ui.from : ui.to;
+  if (state[key]) {
+    state[key].setLatLng(latlng);
+  } else {
+    state[key] = createPin(latlng, kind).addTo(map);
+    state[key].on('dragend', () => {
+      input.value = MAP_POINT;
+      updateRoute();
+    });
+  }
+  state[key].options.title = title;
+  input.value = title;
+  ui.clear.disabled = false;
 }
 
 function onMapClick(event) {
@@ -110,11 +137,11 @@ function onMapClick(event) {
     return;
   }
   if (!state.start) {
-    state.start = addPin(event.latlng, 'start');
-    ui.clear.disabled = false;
-    setStatus('Click the map to set the end.');
+    setPin('start', event.latlng, MAP_POINT);
+    setStatus(state.end ? 'Finding the route…' : 'Search for the end, or click the map.');
+    updateRoute();
   } else if (!state.end) {
-    state.end = addPin(event.latlng, 'end');
+    setPin('end', event.latlng, MAP_POINT);
     updateRoute();
   } else {
     // A third click starts a new route from the click.
@@ -123,14 +150,32 @@ function onMapClick(event) {
   }
 }
 
+function onPick(kind) {
+  return (result) => {
+    const { place } = result;
+    setPin(kind, [place.lat, place.lon], ui[kind === 'start' ? 'from' : 'to'].value);
+    if (state.start && state.end) {
+      updateRoute({ fit: true });
+    } else {
+      // No animation: Leaflet ignores a new view while a zoom animation runs,
+      // so a fast second pick would not fit the route.
+      map.setView([place.lat, place.lon], Math.max(map.getZoom(), 16), { animate: false });
+      setStatus(kind === 'start' ? 'Now search for the end, or click the map.' : 'Now search for the start, or click the map.');
+      (kind === 'start' ? ui.to : ui.from).focus();
+    }
+  };
+}
+
 map.on('click', onMapClick);
-ui.mode.addEventListener('change', updateRoute);
-ui.safety.addEventListener('input', updateRoute);
+ui.mode.addEventListener('change', () => updateRoute());
+ui.safety.addEventListener('input', () => updateRoute());
 ui.clear.addEventListener('click', clearAll);
+attachAutocomplete(ui.from, ui.fromList, () => state.places, onPick('start'));
+attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 
 try {
-  state.graph = await loadGraph();
-  setStatus('Click the map to set the start.');
+  [state.graph, state.places] = await Promise.all([loadGraph(), loadPlaces()]);
+  setStatus('Search for a place, or click the map to set the start.');
 } catch (error) {
   console.error(error);
   setStatus('The street map did not load. Refresh the page to try again.', true);

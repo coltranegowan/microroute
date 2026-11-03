@@ -35,8 +35,13 @@ export function createMap(elementId, panel = null) {
     interactive: false,
   }).addTo(map);
 
-  map.fitBounds(STUDY_AREA, panelPadding(map, panel));
+  fitWithPanel(map, STUDY_AREA, panel);
   return map;
+}
+
+// Fit the map to bounds, for example a route, and keep them out from under the panel.
+export function fitWithPanel(map, bounds, panel, options = {}) {
+  map.fitBounds(bounds, { ...panelPadding(map, panel), ...options });
 }
 
 function panelPadding(map, panel) {
