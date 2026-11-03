@@ -98,9 +98,3 @@ The times above are only examples. Get the real times from the UCSD class schedu
 | User reports | This feature needs a place to store data, but GitHub Pages cannot store it. A Google Form that writes to a Google Sheet is the simplest option. Keep it as the optional extension. |
 | Scope | Weeks 7 and 8 have the most work. If the team is late, remove the parking and construction layers first. |
 
-## Open questions (decide before Week 5)
-
-1. **Team skills.** Who will write code? Who knows Python or JavaScript?
-2. **Driving question.** The research question can change what the app must measure.
-3. **AI policy.** Read the SYN 100 Generative AI Policy. Some courses need the team to disclose AI use.
-4. **Evaluation.** How will the team show that the safest route is safer? Use the methods from the Week 3 Methods assignment.
