@@ -32,14 +32,15 @@ export function createMap(elementId, area, panel = null) {
   return map;
 }
 
-// Cover all of the map outside the area with gray. The mask is a polygon with
+// Gray out the map outside the area. The streets still show through, but the
+// rider can see that they are not part of the map. The mask is a polygon with
 // a hole: the outer ring goes around the world, and the area is the hole.
 function addAreaMask(map, area) {
   const world = [[-89, -360], [89, -360], [89, 360], [-89, 360]];
   L.polygon([world, area], {
     stroke: false,
-    fillColor: '#c9cdd2',
-    fillOpacity: 1,
+    fillColor: '#9ca3ab',
+    fillOpacity: 0.6,
     interactive: false,
   }).addTo(map);
   L.polygon(area, {
