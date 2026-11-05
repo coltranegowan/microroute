@@ -2,8 +2,9 @@
 //
 // A rider can type a building code ("CSB"), a room ("CSB 001", "csb001",
 // "EBU3B-1124"), a full name ("Cognitive Science Building"), part of a name
-// ("cog sci") or the initials of a name ("wlh"). The places come from
-// data/places.json, which scripts/build_places.py writes.
+// ("cog sci"), the initials of a name ("wlh") or a street address
+// ("4509 Governor Dr"). The places come from data/places.json and the
+// addresses from data/addresses.json. scripts/build_places.py writes both.
 //
 // searchPlaces() has no browser code, so Node can test it.
 
@@ -22,14 +23,29 @@ const KIND_LABEL = {
   school: 'School',
   hospital: 'Hospital',
   nature_reserve: 'Nature reserve',
+  address: 'Address',
 };
 
-export async function loadPlaces(url = 'data/places.json') {
+// Short forms of street words. The search expands them in the query and in
+// the street names, so "Governor Dr" matches "Governor Drive".
+const STREET_WORDS = {
+  dr: 'drive', st: 'street', ave: 'avenue', av: 'avenue', rd: 'road', blvd: 'boulevard',
+  ln: 'lane', ct: 'court', pl: 'place', cir: 'circle', ter: 'terrace', pkwy: 'parkway',
+  hwy: 'highway', wy: 'way', sq: 'square', trl: 'trail', pt: 'point', mt: 'mount',
+  n: 'north', s: 'south', e: 'east', w: 'west',
+};
+
+async function fetchJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Cannot load ${url}: HTTP ${response.status}`);
   }
-  return buildIndex(await response.json());
+  return response.json();
+}
+
+export async function loadPlaces(placesUrl = 'data/places.json', addressesUrl = 'data/addresses.json') {
+  const [places, addresses] = await Promise.all([fetchJson(placesUrl), fetchJson(addressesUrl)]);
+  return buildIndex(places, addresses);
 }
 
 export function normalize(text) {
@@ -44,7 +60,12 @@ export function normalize(text) {
 
 const compact = (text) => normalize(text).replace(/ /g, '');
 
-export function buildIndex(places) {
+const expandStreet = (text) => normalize(text).split(' ').map((word) => STREET_WORDS[word] ?? word).join(' ');
+
+const houseValue = (number) => parseInt(number, 10) || 0;
+
+// addresses: { street: [[number, lat, lon], ...] } from data/addresses.json.
+export function buildIndex(places, addresses = {}) {
   const entries = places.map((place) => {
     const names = [place.name, ...(place.aliases ?? [])].map(normalize);
     const words = names.map((name) => name.split(' '));
@@ -53,7 +74,79 @@ export function buildIndex(places) {
   });
   // Longest codes first, so that "EBU3B" wins over a code "EBU".
   const codes = [...new Set(entries.flatMap((entry) => entry.codes))].sort((a, b) => b.length - a.length);
-  return { entries, codes };
+
+  // OSM can spell one street in two ways, for example "Avenida de la Playa"
+  // and "Avenida De La Playa". The expanded name merges them.
+  const streets = new Map();
+  for (const [name, list] of Object.entries(addresses)) {
+    const key = expandStreet(name);
+    if (!streets.has(key)) {
+      streets.set(key, { name, key, words: key.split(' '), houses: [] });
+    }
+    const street = streets.get(key);
+    for (const [number, lat, lon] of list) {
+      street.houses.push({ number, key: normalize(number), value: houseValue(number), lat, lon });
+    }
+  }
+  return { entries, codes, streets: [...streets.values()] };
+}
+
+// Split "4509 Governor Dr, San Diego, CA 92122" into a house number and a street.
+function parseAddress(query) {
+  const text = normalize(query.split(',')[0])
+    .replace(/ \d{5}( \d{4})?$/, '') // ZIP code
+    .replace(/ (ca|california)$/, '')
+    .replace(/ san diego$/, '');
+  const match = text.match(/^(\d+[a-z]?) (.+)$/);
+  return match ? { number: match[1], street: expandStreet(match[2]) } : null;
+}
+
+function scoreStreet(street, query) {
+  if (street.key === query) return 3;
+  if (street.key.startsWith(query)) return 2;
+  const words = query.split(' ');
+  return words.every((q) => street.words.some((word) => word.startsWith(q))) ? 1 : 0;
+}
+
+function addressResult(street, house, score, nearestTo = null) {
+  return {
+    place: { name: `${house.number} ${street.name}`, kind: 'address', lat: house.lat, lon: house.lon },
+    room: '',
+    score,
+    nearestTo,
+  };
+}
+
+// Returns address results for a query with a house number and a street, else [].
+function searchAddresses(index, query) {
+  const parsed = parseAddress(query);
+  if (!parsed) {
+    return [];
+  }
+  const results = [];
+  for (const street of index.streets) {
+    const streetScore = scoreStreet(street, parsed.street);
+    if (!streetScore) continue;
+
+    const exact = street.houses.find((house) => house.key === parsed.number);
+    if (exact) {
+      results.push(addressResult(street, exact, 90 + streetScore));
+      continue;
+    }
+    // The rider is still typing the number: "45 governor" → 4509, 4510, ...
+    const partial = street.houses.filter((house) => house.key.startsWith(parsed.number));
+    if (partial.length) {
+      results.push(...partial.slice(0, MAX_RESULTS).map((house) => addressResult(street, house, 80 + streetScore)));
+      continue;
+    }
+    // The number is not in the data. Give the nearest number on the same side of the street.
+    const wanted = houseValue(parsed.number);
+    const sameSide = street.houses.filter((house) => house.value % 2 === wanted % 2);
+    const nearest = (sameSide.length ? sameSide : street.houses)
+      .reduce((best, house) => (Math.abs(house.value - wanted) < Math.abs(best.value - wanted) ? house : best));
+    results.push(addressResult(street, nearest, 70 + streetScore, parsed.number));
+  }
+  return results.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
 }
 
 // Split a query into a building code and a room, for example "CSB 001" → csb, 001.
@@ -121,6 +214,12 @@ export function searchPlaces(index, query) {
     return [];
   }
 
+  // 0. A street address: "4509 Governor Dr".
+  const addresses = searchAddresses(index, query);
+  if (addresses.length) {
+    return addresses;
+  }
+
   // 1. A building code, with or without a room: "CSB", "CSB 001".
   const parsed = parseCode(index, query);
   if (parsed) {
@@ -161,7 +260,10 @@ export function resultLabel({ place, room }) {
   return code ? `${place.name} (${code})` : place.name;
 }
 
-function resultDetail({ place, room }) {
+function resultDetail({ place, room, nearestTo }) {
+  if (nearestTo) {
+    return `Nearest address to number ${nearestTo}`;
+  }
   const parts = [];
   if (place.codes) parts.push(place.codes.join(', '));
   if (room) parts.push(`Room ${room}`);

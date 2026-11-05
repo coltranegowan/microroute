@@ -30,7 +30,7 @@ node scripts/test_search.mjs
 ```
 
 The build downloads the OSM streets (about 2–3 minutes) and writes `data/graph.json`.
-`build_places.py` writes `data/places.json`, the places for the From and To search boxes.
+`build_places.py` writes `data/places.json` and `data/addresses.json`, the places and the street addresses for the From and To search boxes.
 
 ## Change the map area
 

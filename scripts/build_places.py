@@ -1,4 +1,4 @@
-"""Build data/places.json, the list of places for the search boxes.
+"""Build data/places.json and data/addresses.json for the search boxes.
 
 Run from the project root:
     .venv/bin/python scripts/build_places.py
@@ -26,6 +26,7 @@ from build_graph import ROOT, load_area
 
 CODES_CSV = ROOT / "data" / "building_codes.csv"
 OUTPUT = ROOT / "data" / "places.json"
+ADDRESSES = ROOT / "data" / "addresses.json"
 
 TAGS = {
     "building": True,
@@ -63,6 +64,41 @@ def download():
     features = features[features["name"].notna()]
     # OSM gives a feature that crosses the edge. Keep it only if its point is inside.
     return features[features.geometry.representative_point().within(area)]
+
+
+def house_sort_key(number):
+    digits = "".join(c for c in number if c.isdigit())
+    return (int(digits) if digits else 0, number)
+
+
+def build_addresses():
+    """Street addresses in the area, grouped by street: {street: [[number, lat, lon], ...]}."""
+    area = load_area()
+    features = ox.features_from_polygon(area, {"addr:housenumber": True})
+    features = features[features["addr:street"].notna()]
+    points = features.geometry.representative_point()
+    features, points = features[points.within(area)], points[points.within(area)]
+
+    streets = {}
+    for (_, row), point in zip(features.iterrows(), points):
+        # One OSM feature can have more than one street or number, for example
+        # "Cliffridge Avenue;Robinhood Lane" or "3260;3262". Text after a comma
+        # is a suite, for example "University Center Lane, Suite 100".
+        for street in row["addr:street"].split(";"):
+            street = street.split(",")[0].strip()
+            if not street:
+                continue
+            numbers = streets.setdefault(street, {})
+            for number in str(row["addr:housenumber"]).split(";"):
+                number = number.strip()
+                if number and number not in numbers:
+                    numbers[number] = [number, round(point.y, 6), round(point.x, 6)]
+
+    result = {street: sorted(numbers.values(), key=lambda a: house_sort_key(a[0]))
+              for street, numbers in sorted(streets.items())}
+    ADDRESSES.write_text(json.dumps(result, separators=(",", ":"), ensure_ascii=False))
+    count = sum(len(a) for a in result.values())
+    print(f"Wrote {ADDRESSES.relative_to(ROOT)}: {count} addresses on {len(result)} streets")
 
 
 def read_codes():
@@ -121,6 +157,8 @@ def main():
     print(f"Wrote {OUTPUT.relative_to(ROOT)}: {len(result)} places, {with_code} with a building code")
     for entry in missing:
         print(f"WARNING {CODES_CSV.name}: no OSM place has the name {entry['name']!r} (code {entry['code']})")
+
+    build_addresses()
     if missing:
         sys.exit(1)
 
