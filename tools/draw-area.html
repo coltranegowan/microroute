@@ -68,7 +68,7 @@
       <p id="status" class="status" role="status" aria-live="polite">Loading the current area…</p>
       <ol>
         <li>Drag a corner to move it.</li>
-        <li>Drag or click a white dot to add a corner.</li>
+        <li>Drag or click a white dot to add a corner. Zoom in to see more dots.</li>
         <li>Click a corner to remove it.</li>
         <li>To draw a new shape, click <b>Start over</b>. Then click the map for each corner.
           Click the gold corner to close the shape.</li>
@@ -139,6 +139,7 @@
         const marker = L.marker(point, {
           icon: icon(i === 0 && !closed ? 'vertex first' : 'vertex'),
           draggable: true,
+          zIndexOffset: 1000, // corners stay above the white dots
           title: i === 0 && !closed ? 'Click to close the shape' : 'Drag to move. Click to remove.',
         }).addTo(layer);
         marker.on('dragstart', save);
@@ -161,6 +162,10 @@
       if (closed) {
         ring.forEach((point, i) => {
           const next = ring[(i + 1) % ring.length];
+          // No dot between two corners that are close on the screen. Zoom in to add one there.
+          if (map.latLngToLayerPoint(point).distanceTo(map.latLngToLayerPoint(next)) < 30) {
+            return;
+          }
           const mid = [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2];
           const handle = L.marker(mid, { icon: icon('midpoint'), draggable: true, title: 'Drag or click to add a corner' }).addTo(layer);
           const insert = (latlng) => {
@@ -187,6 +192,9 @@
         draw();
       }
     });
+
+    // The white dots depend on the zoom, so draw them again after each zoom.
+    map.on('zoomend', draw);
 
     ui.undo.addEventListener('click', () => {
       const last = history.pop();

@@ -22,6 +22,13 @@ export function createMap(elementId, area, panel = null) {
 
   addAreaMask(map, area);
   fitWithPanel(map, L.latLngBounds(area), panel);
+
+  // A loose limit: the map stops a short distance outside the first view, and
+  // it zooms out one level past it. The limit must be larger than the view.
+  // Else Leaflet centers the view in the limit and moves the area under the panel.
+  map.setMaxBounds(map.getBounds().pad(0.2));
+  map.options.maxBoundsViscosity = 1;
+  map.setMinZoom(map.getZoom() - 1);
   return map;
 }
 
