@@ -136,9 +136,9 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
   return layer.addTo(map);
 }
 
-// All the bike paths and bike lanes in the graph, as thin lines under the
-// route. Each line has a white edge, so it stands out from the map tiles.
-// A canvas draws the lines faster than SVG.
+// All the bike paths and bike lanes in the graph, as see-through lines under
+// the route, so the streets and the labels show through. A canvas draws the
+// lines faster than SVG.
 //
 // Returns an object:
 //   show(on)                 put the lines on the map, or remove them
@@ -150,8 +150,6 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
   }
   const renderer = L.canvas({ pane: 'bikeNetwork' });
   const layer = L.layerGroup();
-  const edges = L.layerGroup().addTo(layer); // the white edges, under the colors
-  const colors = L.layerGroup().addTo(layer);
   const seen = new Set();
   for (const node of graph.nodes.values()) {
     for (const edge of node.out) {
@@ -164,18 +162,16 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
         continue;
       }
       seen.add(key);
-      const points = edgePoints(graph, edge);
-      L.polyline(points, { renderer, color: '#ffffff', weight: 5, opacity: 1, interactive: false }).addTo(edges);
-      const line = L.polyline(points, {
+      const line = L.polyline(edgePoints(graph, edge), {
         renderer,
         color: BIKE_STYLE[edge.bike].color,
-        weight: 3,
-        opacity: 1,
+        weight: 4,
+        opacity: 0.55,
         dashArray: colorblind ? BIKE_STYLE[edge.bike].pattern : null,
         interactive: false,
       });
       line.bike = edge.bike;
-      line.addTo(colors);
+      line.addTo(layer);
     }
   }
 
@@ -186,7 +182,7 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
     },
 
     setColorblind(on) {
-      colors.eachLayer((line) => line.setStyle({ dashArray: on ? BIKE_STYLE[line.bike].pattern : null }));
+      layer.eachLayer((line) => line.setStyle({ dashArray: on ? BIKE_STYLE[line.bike].pattern : null }));
     },
   };
 }
