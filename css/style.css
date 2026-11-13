@@ -9,12 +9,12 @@
   --error: #b2182b;
 
   /* Bike facility colors: the same as BIKE_STYLE in js/map.js. */
-  --bike-path: #1f4e9c;
-  --bike-shared_path: #6fa8dc;
-  --bike-buffered: #7b2d8e;
-  --bike-lane: #c77dd1;
-  --bike-sharrow: #d6336c;
-  --bike-none: #7d8590;
+  --bike-path: #0b4f9c;
+  --bike-shared_path: #2f9bf0;
+  --bike-buffered: #00897b;
+  --bike-lane: #7b3fbf;
+  --bike-sharrow: #ef6c00;
+  --bike-none: #5f6670;
 }
 
 * {
@@ -235,15 +235,11 @@ select,
 .swatch.buffered { background: var(--bike-buffered); }
 .swatch.lane { background: var(--bike-lane); }
 .swatch.sharrow { background: var(--bike-sharrow); }
-.swatch.none { height: 4px; background: var(--bike-none); }
+.swatch.none { background: var(--bike-none); }
 
 /* Colorblind mode: the same line patterns as BIKE_STYLE in js/map.js. */
 .colorblind .swatch {
   height: 7px;
-}
-
-.colorblind .swatch.none {
-  height: 4px;
 }
 
 .colorblind .swatch.shared_path {

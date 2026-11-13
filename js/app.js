@@ -83,7 +83,6 @@ function clearRoute() {
     state.routeLayer = null;
   }
   state.route = null;
-  state.bikeLanes?.setFaded(false);
   ui.summary.hidden = true;
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
@@ -320,7 +319,6 @@ function updateRoute({ fit = false } = {}) {
 
   state.route = route;
   state.routeLayer = drawRoute(map, route, { colorblind: ui.colorblind.checked });
-  state.bikeLanes.setFaded(true);
   const lowStress = route.lengthByLts[1] + route.lengthByLts[2];
   ui.distance.textContent = formatDistance(route.length);
   ui.time.textContent = formatTime(route.time);

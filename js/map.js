@@ -3,19 +3,21 @@
 import { edgePoints } from './routing.js';
 
 // The bike facility types from scripts/lts.py (bike_type), from the best to
-// the worst. The colors are the same as --bike-* in css/style.css. Green is
-// for the bike racks only.
+// the worst. The colors are the same as --bike-* in css/style.css. Each type
+// has its own hue: blue for paths, teal for a buffered lane, purple for a
+// painted lane and orange for a sharrow. The light blue and the dark blue are
+// both paths. Green is for the bike racks only.
 //
 // Colorblind mode: each type also gets a line pattern, so a rider can read
 // the type with no colors. The legend in css/style.css shows the same
 // patterns. The white line under the route shows in the gaps.
 const BIKE_STYLE = {
-  path: { color: '#1f4e9c', pattern: null }, // solid
-  shared_path: { color: '#6fa8dc', pattern: '14 7' }, // long dashes
-  buffered: { color: '#7b2d8e', pattern: '14 5 2 5' }, // dash and dot
-  lane: { color: '#c77dd1', pattern: '5 7' }, // short dashes
-  sharrow: { color: '#d6336c', pattern: '1 9' }, // dots. Not orange: the tiles draw main roads in orange.
-  none: { color: '#7d8590', pattern: null }, // solid, but thinner
+  path: { color: '#0b4f9c', pattern: null }, // solid
+  shared_path: { color: '#2f9bf0', pattern: '14 7' }, // long dashes
+  buffered: { color: '#00897b', pattern: '14 5 2 5' }, // dash and dot
+  lane: { color: '#7b3fbf', pattern: '5 7' }, // short dashes
+  sharrow: { color: '#ef6c00', pattern: '1 9' }, // dots
+  none: { color: '#5f6670', pattern: null }, // solid
 };
 
 // area: the outline of the usable area, [[lat, lon], ...], from js/area.js.
@@ -102,19 +104,29 @@ export function createPin(latlng, kind) {
 // map tiles. colorblind: true also gives each type its line pattern.
 export function drawRoute(map, route, { colorblind = false } = {}) {
   const layer = L.layerGroup();
+  // A UCSD gold halo makes the route stand out from the bike lane layer.
+  // No other line on the map is gold.
+  L.polyline(route.points, {
+    color: '#ffcd00',
+    weight: colorblind ? 15 : 13,
+    opacity: 1,
+    lineCap: 'round',
+    lineJoin: 'round',
+    interactive: false,
+  }).addTo(layer);
+  // A white line under the colors shows in the gaps of the colorblind patterns.
   L.polyline(route.points, {
     color: '#ffffff',
-    weight: colorblind ? 11 : 9,
-    opacity: 0.9,
+    weight: colorblind ? 8 : 7,
+    opacity: 1,
     interactive: false,
   }).addTo(layer);
 
   for (const segment of route.segments) {
     const style = BIKE_STYLE[segment.bike];
-    const weight = colorblind ? 6 : 5;
     L.polyline(segment.points, {
       color: style.color,
-      weight: segment.bike === 'none' ? weight - 2 : weight,
+      weight: colorblind ? 7 : 6,
       opacity: 1,
       dashArray: colorblind ? style.pattern : null,
       lineCap: 'round',
@@ -125,12 +137,12 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
 }
 
 // All the bike paths and bike lanes in the graph, as thin lines under the
-// route. A canvas draws the 1,700 lines faster than SVG.
+// route. Each line has a white edge, so it stands out from the map tiles.
+// A canvas draws the lines faster than SVG.
 //
 // Returns an object:
 //   show(on)                 put the lines on the map, or remove them
 //   setColorblind(on)        add or remove the line patterns
-//   setFaded(on)             make the lines faint, so that a route stands out
 export function createBikeLayer(map, graph, { colorblind = false } = {}) {
   // A pane under the route and the area mask (the overlay pane is 400).
   if (!map.getPane('bikeNetwork')) {
@@ -138,6 +150,8 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
   }
   const renderer = L.canvas({ pane: 'bikeNetwork' });
   const layer = L.layerGroup();
+  const edges = L.layerGroup().addTo(layer); // the white edges, under the colors
+  const colors = L.layerGroup().addTo(layer);
   const seen = new Set();
   for (const node of graph.nodes.values()) {
     for (const edge of node.out) {
@@ -150,16 +164,18 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
         continue;
       }
       seen.add(key);
-      const line = L.polyline(edgePoints(graph, edge), {
+      const points = edgePoints(graph, edge);
+      L.polyline(points, { renderer, color: '#ffffff', weight: 5, opacity: 1, interactive: false }).addTo(edges);
+      const line = L.polyline(points, {
         renderer,
         color: BIKE_STYLE[edge.bike].color,
         weight: 3,
-        opacity: 0.85,
+        opacity: 1,
         dashArray: colorblind ? BIKE_STYLE[edge.bike].pattern : null,
         interactive: false,
       });
       line.bike = edge.bike;
-      line.addTo(layer);
+      line.addTo(colors);
     }
   }
 
@@ -170,11 +186,7 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
     },
 
     setColorblind(on) {
-      layer.eachLayer((line) => line.setStyle({ dashArray: on ? BIKE_STYLE[line.bike].pattern : null }));
-    },
-
-    setFaded(on) {
-      layer.eachLayer((line) => line.setStyle({ opacity: on ? 0.3 : 0.85 }));
+      colors.eachLayer((line) => line.setStyle({ dashArray: on ? BIKE_STYLE[line.bike].pattern : null }));
     },
   };
 }
