@@ -121,6 +121,46 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
   return layer.addTo(map);
 }
 
+// A small bicycle, for the rack markers. currentColor sets its color.
+const BIKE_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+  stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.5"/><circle cx="18.5" cy="16" r="3.5"/>
+  <path d="M5.5 16 9.5 8h6l3 8M9.5 8 12 16h-6.5M15.5 8l-3.5 8M8 6h3"/></svg>`;
+
+const RACK_LABEL = { rack: 'Bike rack', enclosure: 'Bike enclosure (locked)' };
+
+// The bike racks and enclosures from data/racks.json, as a layer group.
+// Each marker has the rack in marker.rack. A rack is a white square and an
+// enclosure is a navy square, so the two are different with no colors.
+export function createRackLayer(racks) {
+  const layer = L.layerGroup();
+  for (const rack of racks) {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="rack-icon ${rack.kind}">${BIKE_SVG}</div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      popupAnchor: [0, -9],
+    });
+    const title = RACK_LABEL[rack.kind] + (rack.near ? ` near ${rack.near}` : '');
+    // keyboard: false keeps the 200+ racks out of the Tab order. The low
+    // zIndexOffset keeps the racks under pins A and B.
+    const marker = L.marker([rack.lat, rack.lon], { icon, title, keyboard: false, zIndexOffset: -1000 });
+    marker.bindPopup(() => {
+      const box = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = RACK_LABEL[rack.kind];
+      box.append(name);
+      if (rack.near) {
+        box.append(document.createElement('br'), `Near ${rack.near}`);
+      }
+      return box;
+    });
+    marker.rack = rack;
+    marker.addTo(layer);
+  }
+  return layer;
+}
+
 // A ring that marks the point of a step in the directions.
 export function createStepMarker(latlng) {
   return L.circleMarker(latlng, {

@@ -63,6 +63,8 @@
         <div><dt>Low stress</dt><dd id="low-stress"></dd></div>
       </dl>
 
+      <button id="nearest-rack" type="button" class="nearest-rack" hidden></button>
+
       <div id="directions" class="directions" hidden>
         <button id="speak" type="button" class="secondary" hidden>Read directions aloud</button>
         <details id="directions-details">
@@ -77,6 +79,12 @@
         <li><span class="swatch lts3"></span>LTS 3: busy, with a bike lane</li>
         <li><span class="swatch lts4"></span>LTS 4: high stress</li>
       </ul>
+
+      <label class="check">
+        <input id="show-racks" type="checkbox" checked aria-describedby="racks-help">
+        Show bike racks and locked bike enclosures
+      </label>
+      <p id="racks-help" class="help racks-help" hidden>Zoom in to see the racks.</p>
 
       <label class="check">
         <input id="colorblind" type="checkbox">

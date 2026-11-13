@@ -1,7 +1,9 @@
 // Entry point. Connects the map, routing, search, voice and reports parts.
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
-import { createMap, createPin, createStepMarker, drawRoute, fitWithPanel } from './map.js';
+import {
+  createMap, createPin, createRackLayer, createStepMarker, drawRoute, fitWithPanel,
+} from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
 import { canSpeak, speak, stopSpeaking } from './voice.js';
@@ -11,6 +13,11 @@ const MAX_SNAP_M = 300;
 const MAP_POINT = 'Point on the map';
 const OUTSIDE = 'That point is outside the map area. Pick a point that is not gray.';
 const COLORBLIND_KEY = 'microroute.colorblind';
+const RACKS_KEY = 'microroute.racks';
+// The racks show at this zoom and closer. At a lower zoom, 200+ markers hide the map.
+const RACK_MIN_ZOOM = 16;
+// The panel shows the nearest rack to B only if it is closer than this.
+const MAX_RACK_M = 400;
 
 const panel = document.querySelector('.panel');
 const area = await loadArea();
@@ -33,6 +40,9 @@ const ui = {
   stepCount: document.getElementById('step-count'),
   steps: document.getElementById('steps'),
   colorblind: document.getElementById('colorblind'),
+  nearestRack: document.getElementById('nearest-rack'),
+  showRacks: document.getElementById('show-racks'),
+  racksHelp: document.getElementById('racks-help'),
   clear: document.getElementById('clear'),
 };
 
@@ -47,6 +57,8 @@ const state = {
   steps: [], // from js/directions.js
   stepMarker: null,
   speaking: false,
+  rackLayer: null,
+  nearestRack: null, // { marker, meters }: the rack nearest to pin B
 };
 
 function setStatus(text, isError = false) {
@@ -70,6 +82,8 @@ function clearRoute() {
   }
   state.route = null;
   ui.summary.hidden = true;
+  state.nearestRack = null;
+  ui.nearestRack.hidden = true;
   clearDirections();
 }
 
@@ -137,11 +151,15 @@ function setReading(on) {
 
 function startReading() {
   setReading(true);
-  speak(state.steps.map(spokenStep), (i) => {
+  const sentences = state.steps.map(spokenStep);
+  if (state.nearestRack) {
+    sentences.push(`${rackSentence(state.nearestRack, { spoken: true })}.`);
+  }
+  speak(sentences, (i) => {
     markStep(i);
     if (i < 0) {
       setReading(false);
-    } else {
+    } else if (i < state.steps.length) {
       showStep(i);
     }
   });
@@ -155,24 +173,98 @@ function stopReading() {
   }
 }
 
-// Colorblind mode
+// Settings that the browser keeps for the next visit
 
-function loadColorblind() {
+function loadSetting(key, fallback) {
   try {
-    return localStorage.getItem(COLORBLIND_KEY) === 'on';
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value === 'on';
   } catch {
-    return false;
+    return fallback;
   }
 }
+
+function saveSetting(key, on) {
+  try {
+    localStorage.setItem(key, on ? 'on' : 'off');
+  } catch {
+    // The setting then lasts only until the page closes.
+  }
+}
+
+// Bike racks
+
+async function loadRacks(url = 'data/racks.json') {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Cannot load ${url}: HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+// Show the racks if the box is checked and the map is zoomed in enough.
+function updateRacks() {
+  if (!state.rackLayer) {
+    return;
+  }
+  const zoomedIn = map.getZoom() >= RACK_MIN_ZOOM;
+  const show = ui.showRacks.checked && zoomedIn;
+  if (show && !map.hasLayer(state.rackLayer)) {
+    state.rackLayer.addTo(map);
+  } else if (!show && map.hasLayer(state.rackLayer)) {
+    state.rackLayer.remove();
+  }
+  ui.racksHelp.hidden = !ui.showRacks.checked || zoomedIn;
+}
+
+// The rack nearest to a point: { marker, meters }, or null if no rack is near.
+function findNearestRack(latlng) {
+  let best = null;
+  state.rackLayer?.eachLayer((marker) => {
+    const { lat, lon } = marker.rack;
+    const meters = distance(latlng.lat, latlng.lng, lat, lon);
+    if (meters <= MAX_RACK_M && (!best || meters < best.meters)) {
+      best = { marker, meters };
+    }
+  });
+  return best;
+}
+
+function rackSentence({ marker, meters }, { spoken = false } = {}) {
+  const kind = marker.rack.kind === 'enclosure' ? 'locked bike enclosure' : 'bike rack';
+  const near = marker.rack.near ? `, near ${marker.rack.near}` : '';
+  return `The nearest ${kind} to B is ${formatStepDistance(meters, { spoken })} away${near}`;
+}
+
+function showNearestRack() {
+  state.nearestRack = findNearestRack(state.end.getLatLng());
+  if (state.nearestRack) {
+    ui.nearestRack.textContent = `${rackSentence(state.nearestRack)}. Show it on the map.`;
+  }
+  ui.nearestRack.hidden = !state.nearestRack;
+}
+
+// Zoom to the nearest rack and open its popup. This turns the racks on.
+// No animation: the rack layer must be on the map before the popup opens.
+function goToNearestRack() {
+  const { marker } = state.nearestRack;
+  ui.showRacks.checked = true;
+  saveSetting(RACKS_KEY, true);
+  const bounds = L.latLngBounds([marker.getLatLng(), state.end.getLatLng()]);
+  fitWithPanel(map, bounds, panel, { maxZoom: 18, animate: false });
+  if (map.getZoom() < RACK_MIN_ZOOM) {
+    fitWithPanel(map, L.latLngBounds([marker.getLatLng()]), panel, { maxZoom: RACK_MIN_ZOOM, animate: false });
+  }
+  updateRacks();
+  marker.openPopup();
+}
+
+// Colorblind mode
 
 function setColorblind(on) {
   document.body.classList.toggle('colorblind', on);
   ui.colorblind.checked = on;
-  try {
-    localStorage.setItem(COLORBLIND_KEY, on ? 'on' : 'off');
-  } catch {
-    // The setting then lasts only until the page closes.
-  }
+  saveSetting(COLORBLIND_KEY, on);
   if (state.route) {
     state.routeLayer.remove();
     state.routeLayer = drawRoute(map, state.route, { colorblind: on });
@@ -237,6 +329,7 @@ function updateRoute({ fit = false } = {}) {
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
   showDirections(route);
+  showNearestRack();
   setStatus('Drag A or B to change the route.');
   // Fit after the summary shows, because the summary changes the panel height.
   if (fit) {
@@ -310,7 +403,14 @@ ui.clear.addEventListener('click', clearAll);
 ui.colorblind.addEventListener('change', () => setColorblind(ui.colorblind.checked));
 ui.speak.hidden = !canSpeak;
 ui.speak.addEventListener('click', () => (state.speaking ? stopReading() : startReading()));
-setColorblind(loadColorblind());
+setColorblind(loadSetting(COLORBLIND_KEY, false));
+ui.showRacks.checked = loadSetting(RACKS_KEY, true);
+ui.showRacks.addEventListener('change', () => {
+  saveSetting(RACKS_KEY, ui.showRacks.checked);
+  updateRacks();
+});
+ui.nearestRack.addEventListener('click', goToNearestRack);
+map.on('zoomend', updateRacks);
 attachAutocomplete(ui.from, ui.fromList, () => state.places, onPick('start'));
 attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 
@@ -320,6 +420,18 @@ try {
 } catch (error) {
   console.error(error);
   setStatus('The street map did not load. Refresh the page to try again.', true);
+}
+
+// The routes work with no racks, so a rack error shows only in the console.
+try {
+  state.rackLayer = createRackLayer(await loadRacks());
+  updateRacks();
+  if (state.route) {
+    showNearestRack();
+  }
+} catch (error) {
+  console.error(error);
+  ui.showRacks.closest('label').hidden = true;
 }
 
 // Expose the map and the state for debugging in the browser console.

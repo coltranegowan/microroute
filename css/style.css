@@ -262,6 +262,49 @@ select,
   accent-color: var(--navy);
 }
 
+/* Bike racks */
+
+.rack-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  border: 1.5px solid var(--navy);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  color: var(--navy);
+  background: #ffffff;
+}
+
+.rack-icon.enclosure {
+  color: var(--gold);
+  background: var(--navy);
+}
+
+.rack-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.racks-help {
+  margin: -8px 0 12px 24px;
+}
+
+.nearest-rack {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-weight: 400;
+  text-align: left;
+  color: var(--text);
+  background: #e8ecf4;
+}
+
+.nearest-rack:hover {
+  background: #d8deeb;
+}
+
 /* Directions */
 
 .directions {
