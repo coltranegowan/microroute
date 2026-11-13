@@ -93,7 +93,7 @@ export function createPin(latlng, kind) {
     draggable: true,
     keyboard: true,
     title: kind === 'start' ? 'Start' : 'End',
-    zIndexOffset: 1000, // above the racks and the rack clusters
+    zIndexOffset: 1000, // above the racks
   });
 }
 
@@ -131,11 +131,11 @@ const LOCK_SVG = `<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.5
   fill="currentColor"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
 
 const RACK_LABEL = { rack: 'Bike rack', enclosure: 'Bike enclosure (locked)' };
-// Racks closer than this to the end of a route show at full size and never join a cluster.
+// Racks closer than this to the end of a route show at full size, at every zoom.
 const NEAR_M = 150;
-// At this zoom and closer, every rack shows by itself. The plugin rounds
-// the zoom, so 18 keeps the clusters up to zoom 17.5.
-const NO_CLUSTER_ZOOM = 18;
+// The racks far from B show at this zoom and closer. At a lower zoom, 200+
+// markers hide the map.
+export const RACK_MIN_ZOOM = 16;
 
 // Put the rack icons in the legend: elements with class "legend-rack" and data-kind.
 export function fillRackLegend() {
@@ -157,17 +157,6 @@ function rackIcon(rack, size = 'small', nearest = false) {
   });
 }
 
-// A green bubble with the number of racks in a cluster.
-function clusterIcon(cluster) {
-  const count = cluster.getChildCount();
-  const px = count < 10 ? 30 : count < 30 ? 36 : 42;
-  return L.divIcon({
-    className: '',
-    html: `<div class="rack-cluster" title="${count} bike racks. Click to zoom in.">${count}</div>`,
-    iconSize: [px, px],
-  });
-}
-
 function rackPopup(rack) {
   const box = document.createElement('div');
   const name = document.createElement('strong');
@@ -181,69 +170,64 @@ function rackPopup(rack) {
 
 // The bike racks and enclosures from data/racks.json.
 //
-// Far from the end of a route, the racks join in clusters: a green bubble
-// with a number. A click on a bubble zooms in. Near the end of a route, the
-// racks show at full size, and the nearest rack gets a gold ring.
+// The racks show at zoom RACK_MIN_ZOOM and closer. After a route, the racks
+// near the end show at full size at every zoom, and the nearest rack gets a
+// gold ring.
 //
 // Returns an object:
 //   markers            one Leaflet marker for each rack, with the rack in marker.rack
 //   show(on)           put the racks on the map, or remove them
 //   focus(latlng, nearestMarker)  make the racks near a point big. null clears it.
-//   reveal(marker, done)          zoom until the marker shows, then call done()
 export function createRackLayer(map, racks) {
-  const clusters = L.markerClusterGroup({
-    // In pixels, for each zoom level (the plugin rounds the zoom). At zoom 15
-    // to 16, the campus racks are dense, so the clusters are larger there.
-    maxClusterRadius: (zoom) => (zoom <= 14 ? 50 : zoom <= 16 ? 80 : 60),
-    disableClusteringAtZoom: NO_CLUSTER_ZOOM,
-    showCoverageOnHover: false,
-    spiderfyOnMaxZoom: false,
-    iconCreateFunction: clusterIcon,
-  });
+  const far = L.layerGroup();
   const near = L.layerGroup();
+  let on = false;
   const markers = racks.map((rack) => {
     const title = RACK_LABEL[rack.kind] + (rack.near ? ` near ${rack.near}` : '');
     // keyboard: false keeps the 200+ racks out of the Tab order.
     const marker = L.marker([rack.lat, rack.lon], { icon: rackIcon(rack), title, keyboard: false });
     marker.bindPopup(() => rackPopup(rack));
     marker.rack = rack;
-    return marker;
+    return marker.addTo(far);
   });
-  clusters.addLayers(markers);
+
+  const update = () => {
+    const showFar = on && map.getZoom() >= RACK_MIN_ZOOM;
+    if (showFar !== map.hasLayer(far)) {
+      if (showFar) far.addTo(map);
+      else far.remove();
+    }
+    if (on !== map.hasLayer(near)) {
+      if (on) near.addTo(map);
+      else near.remove();
+    }
+  };
+  map.on('zoomend', update);
 
   return {
     markers,
 
-    show(on) {
-      for (const layer of [clusters, near]) {
-        if (on) layer.addTo(map);
-        else layer.remove();
-      }
+    show(value) {
+      on = value;
+      update();
     },
 
     focus(latlng, nearestMarker = null) {
-      // Put all the big racks back in the clusters.
-      const old = near.getLayers();
+      // Make all the big racks small again.
+      near.eachLayer((marker) => {
+        marker.setIcon(rackIcon(marker.rack));
+        far.addLayer(marker);
+      });
       near.clearLayers();
-      old.forEach((marker) => marker.setIcon(rackIcon(marker.rack)));
-      clusters.addLayers(old);
       if (!latlng) {
         return;
       }
-      const close = markers.filter((marker) => marker === nearestMarker
-        || map.distance(latlng, marker.getLatLng()) <= NEAR_M);
-      clusters.removeLayers(close);
-      close.forEach((marker) => {
-        marker.setIcon(rackIcon(marker.rack, 'near', marker === nearestMarker));
-        near.addLayer(marker);
-      });
-    },
-
-    reveal(marker, done) {
-      if (near.hasLayer(marker)) {
-        done();
-      } else {
-        clusters.zoomToShowLayer(marker, done);
+      for (const marker of markers) {
+        if (marker === nearestMarker || map.distance(latlng, marker.getLatLng()) <= NEAR_M) {
+          far.removeLayer(marker);
+          marker.setIcon(rackIcon(marker.rack, 'near', marker === nearestMarker));
+          near.addLayer(marker);
+        }
       }
     },
   };

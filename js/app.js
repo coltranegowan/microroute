@@ -2,7 +2,7 @@
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
 import {
-  createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend, fitWithPanel,
+  RACK_MIN_ZOOM, createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend, fitWithPanel,
 } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
@@ -40,6 +40,7 @@ const ui = {
   colorblind: document.getElementById('colorblind'),
   nearestRack: document.getElementById('nearest-rack'),
   showRacks: document.getElementById('show-racks'),
+  racksHelp: document.getElementById('racks-help'),
   clear: document.getElementById('clear'),
 };
 
@@ -201,7 +202,11 @@ async function loadRacks(url = 'data/racks.json') {
 }
 
 function updateRacks() {
-  state.racks?.show(ui.showRacks.checked);
+  if (!state.racks) {
+    return;
+  }
+  state.racks.show(ui.showRacks.checked);
+  ui.racksHelp.hidden = !ui.showRacks.checked || map.getZoom() >= RACK_MIN_ZOOM;
 }
 
 // The rack nearest to a point: { marker, meters }, or null if no rack is near.
@@ -242,7 +247,7 @@ function goToNearestRack() {
   updateRacks();
   const bounds = L.latLngBounds([marker.getLatLng(), state.end.getLatLng()]);
   fitWithPanel(map, bounds, panel, { maxZoom: 18 });
-  state.racks.reveal(marker, () => marker.openPopup());
+  marker.openPopup(); // the nearest rack is big, so it shows at every zoom
 }
 
 // Colorblind mode
@@ -397,6 +402,7 @@ ui.showRacks.addEventListener('change', () => {
 });
 ui.nearestRack.addEventListener('click', goToNearestRack);
 fillRackLegend();
+map.on('zoomend', updateRacks);
 attachAutocomplete(ui.from, ui.fromList, () => state.places, onPick('start'));
 attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 

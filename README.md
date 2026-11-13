@@ -21,7 +21,7 @@ Then open http://localhost:8000. Click the map to set the start (A), then click 
 
 - **Directions:** the panel lists each turn of the route. Click a step to zoom the map to it.
 - **Read directions aloud:** the browser speaks the steps with the Web Speech API. The button does not show in a browser that cannot speak.
-- **Bike racks:** each rack is a green bike-parking square, and a locked enclosure has a padlock badge. When the map is zoomed out, nearby racks join in a green bubble with a number. Click the bubble to zoom in. After a route, the racks within 150 m of B show at full size, and the nearest one has a gold ring. The panel names that rack, and the spoken directions say it at the end.
+- **Bike racks:** each rack is a green bike-parking square, and a locked enclosure has a padlock badge. The racks show at zoom 16 and closer. After a route, the racks within 150 m of B show at full size at every zoom, and the nearest one has a gold ring. The panel names that rack, and the spoken directions say it at the end.
 - **Colorblind mode:** the route and the legend show each stress level as a line pattern, not only a color. The browser keeps the setting for the next visit.
 
 ## Build the street graph

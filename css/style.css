@@ -322,20 +322,8 @@ select,
   display: block;
 }
 
-.rack-cluster {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #ffffff;
-  background: var(--rack);
-  cursor: pointer;
+.racks-help {
+  margin: -8px 0 12px 24px;
 }
 
 .nearest-rack {
@@ -351,25 +339,11 @@ select,
   background: #d8deeb;
 }
 
-.legend-rack,
-.legend-cluster {
+.legend-rack {
   flex: none;
   width: 18px;
   height: 18px;
   margin: 0 3px;
-}
-
-.legend-cluster {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--border);
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #ffffff;
-  background: var(--rack);
 }
 
 /* Directions */
