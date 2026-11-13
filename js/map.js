@@ -93,6 +93,7 @@ export function createPin(latlng, kind) {
     draggable: true,
     keyboard: true,
     title: kind === 'start' ? 'Start' : 'End',
+    zIndexOffset: 1000, // above the racks and the rack clusters
   });
 }
 
@@ -122,43 +123,130 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
 }
 
 // A small bicycle, for the rack markers. currentColor sets its color.
-const BIKE_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
-  stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.5"/><circle cx="18.5" cy="16" r="3.5"/>
-  <path d="M5.5 16 9.5 8h6l3 8M9.5 8 12 16h-6.5M15.5 8l-3.5 8M8 6h3"/></svg>`;
+const BIKE_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4"
+  stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="15.5" r="3.5"/><circle cx="18.5" cy="15.5" r="3.5"/>
+  <path d="M5.5 15.5 9.5 7.5h6l3 8M9.5 7.5 12 15.5h-6.5M15.5 7.5l-3.5 8M8 5.5h3"/></svg>`;
+// A padlock, for the badge on an enclosure.
+const LOCK_SVG = `<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5.5" width="8" height="5.5" rx="1"
+  fill="currentColor"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
 
 const RACK_LABEL = { rack: 'Bike rack', enclosure: 'Bike enclosure (locked)' };
+// Racks closer than this to the end of a route show at full size and never join a cluster.
+const NEAR_M = 150;
+// At this zoom and closer, every rack shows by itself. The plugin rounds
+// the zoom, so 18 keeps the clusters up to zoom 17.5.
+const NO_CLUSTER_ZOOM = 18;
 
-// The bike racks and enclosures from data/racks.json, as a layer group.
-// Each marker has the rack in marker.rack. A rack is a white square and an
-// enclosure is a navy square, so the two are different with no colors.
-export function createRackLayer(racks) {
-  const layer = L.layerGroup();
-  for (const rack of racks) {
-    const icon = L.divIcon({
-      className: '',
-      html: `<div class="rack-icon ${rack.kind}">${BIKE_SVG}</div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
-      popupAnchor: [0, -9],
-    });
-    const title = RACK_LABEL[rack.kind] + (rack.near ? ` near ${rack.near}` : '');
-    // keyboard: false keeps the 200+ racks out of the Tab order. The low
-    // zIndexOffset keeps the racks under pins A and B.
-    const marker = L.marker([rack.lat, rack.lon], { icon, title, keyboard: false, zIndexOffset: -1000 });
-    marker.bindPopup(() => {
-      const box = document.createElement('div');
-      const name = document.createElement('strong');
-      name.textContent = RACK_LABEL[rack.kind];
-      box.append(name);
-      if (rack.near) {
-        box.append(document.createElement('br'), `Near ${rack.near}`);
-      }
-      return box;
-    });
-    marker.rack = rack;
-    marker.addTo(layer);
+// Put the rack icons in the legend: elements with class "legend-rack" and data-kind.
+export function fillRackLegend() {
+  for (const box of document.querySelectorAll('.legend-rack')) {
+    box.innerHTML = rackIcon({ kind: box.dataset.kind }).options.html;
   }
-  return layer;
+}
+
+// size: 'small' or 'near'. nearest: true adds a gold ring.
+function rackIcon(rack, size = 'small', nearest = false) {
+  const px = size === 'near' ? 28 : 20;
+  const badge = rack.kind === 'enclosure' ? `<span class="rack-lock">${LOCK_SVG}</span>` : '';
+  return L.divIcon({
+    className: '',
+    html: `<div class="rack-icon ${size}${nearest ? ' nearest' : ''}">${BIKE_SVG}${badge}</div>`,
+    iconSize: [px, px],
+    iconAnchor: [px / 2, px / 2],
+    popupAnchor: [0, -px / 2],
+  });
+}
+
+// A green bubble with the number of racks in a cluster.
+function clusterIcon(cluster) {
+  const count = cluster.getChildCount();
+  const px = count < 10 ? 30 : count < 30 ? 36 : 42;
+  return L.divIcon({
+    className: '',
+    html: `<div class="rack-cluster" title="${count} bike racks. Click to zoom in.">${count}</div>`,
+    iconSize: [px, px],
+  });
+}
+
+function rackPopup(rack) {
+  const box = document.createElement('div');
+  const name = document.createElement('strong');
+  name.textContent = RACK_LABEL[rack.kind];
+  box.append(name);
+  if (rack.near) {
+    box.append(document.createElement('br'), `Near ${rack.near}`);
+  }
+  return box;
+}
+
+// The bike racks and enclosures from data/racks.json.
+//
+// Far from the end of a route, the racks join in clusters: a green bubble
+// with a number. A click on a bubble zooms in. Near the end of a route, the
+// racks show at full size, and the nearest rack gets a gold ring.
+//
+// Returns an object:
+//   markers            one Leaflet marker for each rack, with the rack in marker.rack
+//   show(on)           put the racks on the map, or remove them
+//   focus(latlng, nearestMarker)  make the racks near a point big. null clears it.
+//   reveal(marker, done)          zoom until the marker shows, then call done()
+export function createRackLayer(map, racks) {
+  const clusters = L.markerClusterGroup({
+    // In pixels, for each zoom level (the plugin rounds the zoom). At zoom 15
+    // to 16, the campus racks are dense, so the clusters are larger there.
+    maxClusterRadius: (zoom) => (zoom <= 14 ? 50 : zoom <= 16 ? 80 : 60),
+    disableClusteringAtZoom: NO_CLUSTER_ZOOM,
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: false,
+    iconCreateFunction: clusterIcon,
+  });
+  const near = L.layerGroup();
+  const markers = racks.map((rack) => {
+    const title = RACK_LABEL[rack.kind] + (rack.near ? ` near ${rack.near}` : '');
+    // keyboard: false keeps the 200+ racks out of the Tab order.
+    const marker = L.marker([rack.lat, rack.lon], { icon: rackIcon(rack), title, keyboard: false });
+    marker.bindPopup(() => rackPopup(rack));
+    marker.rack = rack;
+    return marker;
+  });
+  clusters.addLayers(markers);
+
+  return {
+    markers,
+
+    show(on) {
+      for (const layer of [clusters, near]) {
+        if (on) layer.addTo(map);
+        else layer.remove();
+      }
+    },
+
+    focus(latlng, nearestMarker = null) {
+      // Put all the big racks back in the clusters.
+      const old = near.getLayers();
+      near.clearLayers();
+      old.forEach((marker) => marker.setIcon(rackIcon(marker.rack)));
+      clusters.addLayers(old);
+      if (!latlng) {
+        return;
+      }
+      const close = markers.filter((marker) => marker === nearestMarker
+        || map.distance(latlng, marker.getLatLng()) <= NEAR_M);
+      clusters.removeLayers(close);
+      close.forEach((marker) => {
+        marker.setIcon(rackIcon(marker.rack, 'near', marker === nearestMarker));
+        near.addLayer(marker);
+      });
+    },
+
+    reveal(marker, done) {
+      if (near.hasLayer(marker)) {
+        done();
+      } else {
+        clusters.zoomToShowLayer(marker, done);
+      }
+    },
+  };
 }
 
 // A ring that marks the point of a step in the directions.

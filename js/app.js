@@ -2,7 +2,7 @@
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
 import {
-  createMap, createPin, createRackLayer, createStepMarker, drawRoute, fitWithPanel,
+  createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend, fitWithPanel,
 } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
@@ -14,8 +14,6 @@ const MAP_POINT = 'Point on the map';
 const OUTSIDE = 'That point is outside the map area. Pick a point that is not gray.';
 const COLORBLIND_KEY = 'microroute.colorblind';
 const RACKS_KEY = 'microroute.racks';
-// The racks show at this zoom and closer. At a lower zoom, 200+ markers hide the map.
-const RACK_MIN_ZOOM = 16;
 // The panel shows the nearest rack to B only if it is closer than this.
 const MAX_RACK_M = 400;
 
@@ -42,7 +40,6 @@ const ui = {
   colorblind: document.getElementById('colorblind'),
   nearestRack: document.getElementById('nearest-rack'),
   showRacks: document.getElementById('show-racks'),
-  racksHelp: document.getElementById('racks-help'),
   clear: document.getElementById('clear'),
 };
 
@@ -57,7 +54,7 @@ const state = {
   steps: [], // from js/directions.js
   stepMarker: null,
   speaking: false,
-  rackLayer: null,
+  racks: null, // from createRackLayer() in js/map.js
   nearestRack: null, // { marker, meters }: the rack nearest to pin B
 };
 
@@ -84,6 +81,7 @@ function clearRoute() {
   ui.summary.hidden = true;
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
+  state.racks?.focus(null);
   clearDirections();
 }
 
@@ -202,31 +200,20 @@ async function loadRacks(url = 'data/racks.json') {
   return response.json();
 }
 
-// Show the racks if the box is checked and the map is zoomed in enough.
 function updateRacks() {
-  if (!state.rackLayer) {
-    return;
-  }
-  const zoomedIn = map.getZoom() >= RACK_MIN_ZOOM;
-  const show = ui.showRacks.checked && zoomedIn;
-  if (show && !map.hasLayer(state.rackLayer)) {
-    state.rackLayer.addTo(map);
-  } else if (!show && map.hasLayer(state.rackLayer)) {
-    state.rackLayer.remove();
-  }
-  ui.racksHelp.hidden = !ui.showRacks.checked || zoomedIn;
+  state.racks?.show(ui.showRacks.checked);
 }
 
 // The rack nearest to a point: { marker, meters }, or null if no rack is near.
 function findNearestRack(latlng) {
   let best = null;
-  state.rackLayer?.eachLayer((marker) => {
+  for (const marker of state.racks?.markers ?? []) {
     const { lat, lon } = marker.rack;
     const meters = distance(latlng.lat, latlng.lng, lat, lon);
     if (meters <= MAX_RACK_M && (!best || meters < best.meters)) {
       best = { marker, meters };
     }
-  });
+  }
   return best;
 }
 
@@ -236,8 +223,11 @@ function rackSentence({ marker, meters }, { spoken = false } = {}) {
   return `The nearest ${kind} to B is ${formatStepDistance(meters, { spoken })} away${near}`;
 }
 
+// Make the racks near B big, and name the nearest one in the panel.
 function showNearestRack() {
-  state.nearestRack = findNearestRack(state.end.getLatLng());
+  const end = state.end.getLatLng();
+  state.nearestRack = findNearestRack(end);
+  state.racks?.focus(end, state.nearestRack?.marker);
   if (state.nearestRack) {
     ui.nearestRack.textContent = `${rackSentence(state.nearestRack)}. Show it on the map.`;
   }
@@ -245,18 +235,14 @@ function showNearestRack() {
 }
 
 // Zoom to the nearest rack and open its popup. This turns the racks on.
-// No animation: the rack layer must be on the map before the popup opens.
 function goToNearestRack() {
   const { marker } = state.nearestRack;
   ui.showRacks.checked = true;
   saveSetting(RACKS_KEY, true);
-  const bounds = L.latLngBounds([marker.getLatLng(), state.end.getLatLng()]);
-  fitWithPanel(map, bounds, panel, { maxZoom: 18, animate: false });
-  if (map.getZoom() < RACK_MIN_ZOOM) {
-    fitWithPanel(map, L.latLngBounds([marker.getLatLng()]), panel, { maxZoom: RACK_MIN_ZOOM, animate: false });
-  }
   updateRacks();
-  marker.openPopup();
+  const bounds = L.latLngBounds([marker.getLatLng(), state.end.getLatLng()]);
+  fitWithPanel(map, bounds, panel, { maxZoom: 18 });
+  state.racks.reveal(marker, () => marker.openPopup());
 }
 
 // Colorblind mode
@@ -410,7 +396,7 @@ ui.showRacks.addEventListener('change', () => {
   updateRacks();
 });
 ui.nearestRack.addEventListener('click', goToNearestRack);
-map.on('zoomend', updateRacks);
+fillRackLegend();
 attachAutocomplete(ui.from, ui.fromList, () => state.places, onPick('start'));
 attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 
@@ -424,7 +410,7 @@ try {
 
 // The routes work with no racks, so a rack error shows only in the console.
 try {
-  state.rackLayer = createRackLayer(await loadRacks());
+  state.racks = createRackLayer(map, await loadRacks());
   updateRacks();
   if (state.route) {
     showNearestRack();
