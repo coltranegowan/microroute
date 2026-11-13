@@ -146,11 +146,12 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
     // The first point of each edge is the last point of the edge before it.
     points.push(...(points.length ? line.slice(1) : line));
 
+    const bike = edge.bike ?? 'none';
     const last = segments[segments.length - 1];
-    if (last && last.lts === edge.lts) {
+    if (last && last.bike === bike) {
       last.points.push(...line.slice(1));
     } else {
-      segments.push({ lts: edge.lts, points: [...line] });
+      segments.push({ bike, points: [...line] });
     }
   }
   const length = edges.reduce((sum, edge) => sum + edge.length, 0);
@@ -158,7 +159,7 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
   return {
     edges,
     points, // [[lat, lon], ...] for a Leaflet polyline
-    segments, // [{ lts, points }, ...]: runs of edges with the same LTS level
+    segments, // [{ bike, points }, ...]: runs of edges with the same bike facility type
     length, // m
     time: length / speed, // s, with no traffic or slope
     cost,

@@ -6,11 +6,15 @@
   --panel-bg: #ffffff;
   --border: #d0d4dc;
 
-  /* Stress colors: a blue-to-red scale that most colorblind riders can read. */
-  --lts1: #2166ac;
-  --lts2: #67a9cf;
-  --lts3: #ef8a62;
-  --lts4: #b2182b;
+  --error: #b2182b;
+
+  /* Bike facility colors: the same as BIKE_STYLE in js/map.js. */
+  --bike-path: #1f4e9c;
+  --bike-shared_path: #6fa8dc;
+  --bike-buffered: #7b2d8e;
+  --bike-lane: #c77dd1;
+  --bike-sharrow: #d6336c;
+  --bike-none: #7d8590;
 }
 
 * {
@@ -83,7 +87,7 @@ body {
 }
 
 .status.error {
-  color: var(--lts4);
+  color: var(--error);
 }
 
 .field {
@@ -226,26 +230,37 @@ select,
   border-radius: 3px;
 }
 
-.swatch.lts1 { background: var(--lts1); }
-.swatch.lts2 { background: var(--lts2); }
-.swatch.lts3 { background: var(--lts3); }
-.swatch.lts4 { background: var(--lts4); }
+.swatch.path { background: var(--bike-path); }
+.swatch.shared_path { background: var(--bike-shared_path); }
+.swatch.buffered { background: var(--bike-buffered); }
+.swatch.lane { background: var(--bike-lane); }
+.swatch.sharrow { background: var(--bike-sharrow); }
+.swatch.none { height: 4px; background: var(--bike-none); }
 
-/* Colorblind mode: the same line patterns as LTS_PATTERN in js/map.js. */
+/* Colorblind mode: the same line patterns as BIKE_STYLE in js/map.js. */
 .colorblind .swatch {
   height: 7px;
 }
 
-.colorblind .swatch.lts2 {
-  background: repeating-linear-gradient(90deg, var(--lts2) 0 9px, transparent 9px 13px);
+.colorblind .swatch.none {
+  height: 4px;
 }
 
-.colorblind .swatch.lts3 {
-  background: repeating-linear-gradient(90deg, var(--lts3) 0 4px, transparent 4px 8px);
+.colorblind .swatch.shared_path {
+  background: repeating-linear-gradient(90deg, var(--bike-shared_path) 0 9px, transparent 9px 13px);
 }
 
-.colorblind .swatch.lts4 {
-  background: radial-gradient(circle, var(--lts4) 0 3px, transparent 3.5px) 0 0 / 8px 7px;
+.colorblind .swatch.buffered {
+  background: repeating-linear-gradient(90deg, var(--bike-buffered) 0 8px, transparent 8px 10px,
+    var(--bike-buffered) 10px 12px, transparent 12px 14px);
+}
+
+.colorblind .swatch.lane {
+  background: repeating-linear-gradient(90deg, var(--bike-lane) 0 4px, transparent 4px 8px);
+}
+
+.colorblind .swatch.sharrow {
+  background: radial-gradient(circle, var(--bike-sharrow) 0 3px, transparent 3.5px) 0 0 / 8px 7px;
 }
 
 .check {

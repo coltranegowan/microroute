@@ -6,7 +6,8 @@ Run from the project root:
 The script gets the OSM streets for the study area, calculates the LTS of
 each street segment (see lts.py) and writes the nodes and edges to JSON.
 Speed and time depend on the mode (bike, e-bike, scooter), so the browser
-calculates the time from the length. Slope (USGS) and the SANDAG bike
+calculates the time from the length. Each edge also gets its bike facility
+type (bike_type in lts.py) for the map. Slope (USGS) and the SANDAG bike
 network come later.
 """
 
@@ -17,7 +18,7 @@ from pathlib import Path
 import osmnx as ox
 from shapely.geometry import shape
 
-from lts import lts
+from lts import BIKE_TYPES, bike_type, lts
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "data" / "graph.json"
@@ -32,7 +33,8 @@ def load_area():
     return shape(feature.get("geometry", feature))
 
 # Tags that lts.py needs, in addition to the osmnx defaults.
-EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface"]
+EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface",
+              "cycleway:buffer", "cycleway:both:buffer", "cycleway:right:buffer", "cycleway:left:buffer"]
 
 # The osmnx "bike" network does not include footways. Campus paths are often
 # footways with bicycle=yes, so a second query adds them.
@@ -65,6 +67,7 @@ def to_json(graph):
             "to": str(v),
             "length": round(d["length"], 1),
             "lts": lts(d),
+            "bike": bike_type(d),
         }
         name = d.get("name")
         if name:
@@ -104,6 +107,9 @@ def main():
           f"{data['meta']['edgeCount']} edges, {OUTPUT.stat().st_size / 1e6:.1f} MB")
     for level, count in counts.items():
         print(f"  LTS {level}: {count} edges ({count / len(data['edges']):.0%})")
+    for kind in BIKE_TYPES:
+        count = sum(edge["bike"] == kind for edge in data["edges"])
+        print(f"  {kind}: {count} edges ({count / len(data['edges']):.0%})")
 
 
 if __name__ == "__main__":

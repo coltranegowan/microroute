@@ -73,14 +73,21 @@
         </details>
       </div>
 
-      <ul class="legend" aria-label="Street stress levels">
-        <li><span class="swatch lts1"></span>LTS 1: path or quiet street</li>
-        <li><span class="swatch lts2"></span>LTS 2: low stress</li>
-        <li><span class="swatch lts3"></span>LTS 3: busy, with a bike lane</li>
-        <li><span class="swatch lts4"></span>LTS 4: high stress</li>
+      <ul class="legend" aria-label="Map key">
+        <li><span class="swatch path"></span>Bike path, no cars</li>
+        <li><span class="swatch shared_path"></span>Path shared with people on foot</li>
+        <li><span class="swatch buffered"></span>Bike lane with a buffer</li>
+        <li><span class="swatch lane"></span>Painted bike lane</li>
+        <li><span class="swatch sharrow"></span>Sharrow: share the car lane</li>
+        <li><span class="swatch none"></span>No bike lane (route only)</li>
         <li><span class="legend-rack" data-kind="rack"></span>Bike rack</li>
         <li><span class="legend-rack" data-kind="enclosure"></span>Locked bike enclosure</li>
       </ul>
+
+      <label class="check">
+        <input id="show-bike-lanes" type="checkbox" checked>
+        Show bike paths and bike lanes
+      </label>
 
       <label class="check">
         <input id="show-racks" type="checkbox" checked>
@@ -90,7 +97,7 @@
 
       <label class="check">
         <input id="colorblind" type="checkbox">
-        Colorblind mode: show stress as line patterns
+        Colorblind mode: show the bike lane types as line patterns
       </label>
 
       <button id="clear" type="button" disabled>Clear route</button>

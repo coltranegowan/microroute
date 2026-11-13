@@ -2,7 +2,8 @@
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
 import {
-  RACK_MIN_ZOOM, createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend, fitWithPanel,
+  RACK_MIN_ZOOM, createBikeLayer, createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend,
+  fitWithPanel,
 } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
@@ -14,6 +15,7 @@ const MAP_POINT = 'Point on the map';
 const OUTSIDE = 'That point is outside the map area. Pick a point that is not gray.';
 const COLORBLIND_KEY = 'microroute.colorblind';
 const RACKS_KEY = 'microroute.racks';
+const BIKE_LANES_KEY = 'microroute.bikeLanes';
 // The panel shows the nearest rack to B only if it is closer than this.
 const MAX_RACK_M = 400;
 
@@ -39,6 +41,7 @@ const ui = {
   steps: document.getElementById('steps'),
   colorblind: document.getElementById('colorblind'),
   nearestRack: document.getElementById('nearest-rack'),
+  showBikeLanes: document.getElementById('show-bike-lanes'),
   showRacks: document.getElementById('show-racks'),
   racksHelp: document.getElementById('racks-help'),
   clear: document.getElementById('clear'),
@@ -55,6 +58,7 @@ const state = {
   steps: [], // from js/directions.js
   stepMarker: null,
   speaking: false,
+  bikeLanes: null, // from createBikeLayer() in js/map.js
   racks: null, // from createRackLayer() in js/map.js
   nearestRack: null, // { marker, meters }: the rack nearest to pin B
 };
@@ -79,6 +83,7 @@ function clearRoute() {
     state.routeLayer = null;
   }
   state.route = null;
+  state.bikeLanes?.setFaded(false);
   ui.summary.hidden = true;
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
@@ -256,6 +261,7 @@ function setColorblind(on) {
   document.body.classList.toggle('colorblind', on);
   ui.colorblind.checked = on;
   saveSetting(COLORBLIND_KEY, on);
+  state.bikeLanes?.setColorblind(on);
   if (state.route) {
     state.routeLayer.remove();
     state.routeLayer = drawRoute(map, state.route, { colorblind: on });
@@ -314,6 +320,7 @@ function updateRoute({ fit = false } = {}) {
 
   state.route = route;
   state.routeLayer = drawRoute(map, route, { colorblind: ui.colorblind.checked });
+  state.bikeLanes.setFaded(true);
   const lowStress = route.lengthByLts[1] + route.lengthByLts[2];
   ui.distance.textContent = formatDistance(route.length);
   ui.time.textContent = formatTime(route.time);
@@ -395,6 +402,11 @@ ui.colorblind.addEventListener('change', () => setColorblind(ui.colorblind.check
 ui.speak.hidden = !canSpeak;
 ui.speak.addEventListener('click', () => (state.speaking ? stopReading() : startReading()));
 setColorblind(loadSetting(COLORBLIND_KEY, false));
+ui.showBikeLanes.checked = loadSetting(BIKE_LANES_KEY, true);
+ui.showBikeLanes.addEventListener('change', () => {
+  saveSetting(BIKE_LANES_KEY, ui.showBikeLanes.checked);
+  state.bikeLanes?.show(ui.showBikeLanes.checked);
+});
 ui.showRacks.checked = loadSetting(RACKS_KEY, true);
 ui.showRacks.addEventListener('change', () => {
   saveSetting(RACKS_KEY, ui.showRacks.checked);
@@ -408,6 +420,8 @@ attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 
 try {
   [state.graph, state.places] = await Promise.all([loadGraph(), loadPlaces()]);
+  state.bikeLanes = createBikeLayer(map, state.graph, { colorblind: ui.colorblind.checked });
+  state.bikeLanes.show(ui.showBikeLanes.checked);
   setStatus('Search for a place, or click the map to set the start.');
 } catch (error) {
   console.error(error);

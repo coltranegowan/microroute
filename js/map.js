@@ -1,21 +1,21 @@
 // Leaflet map setup. Leaflet loads as the global `L` from index.html.
 
-// The same colors as --lts1 to --lts4 in css/style.css.
-const LTS_COLOR = {
-  1: '#2166ac',
-  2: '#67a9cf',
-  3: '#ef8a62',
-  4: '#b2182b',
-};
+import { edgePoints } from './routing.js';
 
-// Colorblind mode: each LTS level also gets a line pattern, so a rider can
-// read the stress with no colors. The legend in css/style.css shows the same
+// The bike facility types from scripts/lts.py (bike_type), from the best to
+// the worst. The colors are the same as --bike-* in css/style.css. Green is
+// for the bike racks only.
+//
+// Colorblind mode: each type also gets a line pattern, so a rider can read
+// the type with no colors. The legend in css/style.css shows the same
 // patterns. The white line under the route shows in the gaps.
-const LTS_PATTERN = {
-  1: null, // solid
-  2: '14 7', // long dashes
-  3: '5 7', // short dashes
-  4: '1 9', // dots
+const BIKE_STYLE = {
+  path: { color: '#1f4e9c', pattern: null }, // solid
+  shared_path: { color: '#6fa8dc', pattern: '14 7' }, // long dashes
+  buffered: { color: '#7b2d8e', pattern: '14 5 2 5' }, // dash and dot
+  lane: { color: '#c77dd1', pattern: '5 7' }, // short dashes
+  sharrow: { color: '#d6336c', pattern: '1 9' }, // dots. Not orange: the tiles draw main roads in orange.
+  none: { color: '#7d8590', pattern: null }, // solid, but thinner
 };
 
 // area: the outline of the usable area, [[lat, lon], ...], from js/area.js.
@@ -97,9 +97,9 @@ export function createPin(latlng, kind) {
   });
 }
 
-// Draw a route from js/routing.js. Each edge gets the color of its LTS level.
-// A white line under the colors keeps the route clear on the map tiles.
-// colorblind: true also gives each LTS level its line pattern.
+// Draw a route from js/routing.js. Each edge gets the color of its bike
+// facility type. A white line under the colors keeps the route clear on the
+// map tiles. colorblind: true also gives each type its line pattern.
 export function drawRoute(map, route, { colorblind = false } = {}) {
   const layer = L.layerGroup();
   L.polyline(route.points, {
@@ -110,16 +110,73 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
   }).addTo(layer);
 
   for (const segment of route.segments) {
+    const style = BIKE_STYLE[segment.bike];
+    const weight = colorblind ? 6 : 5;
     L.polyline(segment.points, {
-      color: LTS_COLOR[segment.lts],
-      weight: colorblind ? 6 : 5,
+      color: style.color,
+      weight: segment.bike === 'none' ? weight - 2 : weight,
       opacity: 1,
-      dashArray: colorblind ? LTS_PATTERN[segment.lts] : null,
+      dashArray: colorblind ? style.pattern : null,
       lineCap: 'round',
       interactive: false,
     }).addTo(layer);
   }
   return layer.addTo(map);
+}
+
+// All the bike paths and bike lanes in the graph, as thin lines under the
+// route. A canvas draws the 1,700 lines faster than SVG.
+//
+// Returns an object:
+//   show(on)                 put the lines on the map, or remove them
+//   setColorblind(on)        add or remove the line patterns
+//   setFaded(on)             make the lines faint, so that a route stands out
+export function createBikeLayer(map, graph, { colorblind = false } = {}) {
+  // A pane under the route and the area mask (the overlay pane is 400).
+  if (!map.getPane('bikeNetwork')) {
+    map.createPane('bikeNetwork').style.zIndex = 350;
+  }
+  const renderer = L.canvas({ pane: 'bikeNetwork' });
+  const layer = L.layerGroup();
+  const seen = new Set();
+  for (const node of graph.nodes.values()) {
+    for (const edge of node.out) {
+      if (!edge.bike || edge.bike === 'none') {
+        continue;
+      }
+      // The graph has most streets two times, one for each direction.
+      const key = [edge.from, edge.to].sort().join('-') + edge.length;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      const line = L.polyline(edgePoints(graph, edge), {
+        renderer,
+        color: BIKE_STYLE[edge.bike].color,
+        weight: 3,
+        opacity: 0.85,
+        dashArray: colorblind ? BIKE_STYLE[edge.bike].pattern : null,
+        interactive: false,
+      });
+      line.bike = edge.bike;
+      line.addTo(layer);
+    }
+  }
+
+  return {
+    show(on) {
+      if (on) layer.addTo(map);
+      else layer.remove();
+    },
+
+    setColorblind(on) {
+      layer.eachLayer((line) => line.setStyle({ dashArray: on ? BIKE_STYLE[line.bike].pattern : null }));
+    },
+
+    setFaded(on) {
+      layer.eachLayer((line) => line.setStyle({ opacity: on ? 0.3 : 0.85 }));
+    },
+  };
 }
 
 // A small bicycle, for the rack markers. currentColor sets its color.

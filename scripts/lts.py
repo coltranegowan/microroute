@@ -7,10 +7,14 @@ tags that OSM gives: highway, maxspeed, lanes, oneway, cycleway and bicycle.
 Rules:
   1. A path that cars cannot use (cycleway, path, footway with bikes
      allowed) or a separated bike track is LTS 1.
-  2. A street with a painted bike lane uses the bike lane table.
+  2. A street with a painted bike lane uses the bike lane table. A buffer
+     between the bike lane and the cars lowers the stress by one level.
   3. All other streets use the mixed traffic table.
 When a tag is missing, the default for the road type from DEFAULT_SPEED_MPH
 and DEFAULT_LANES is used.
+
+bike_type() gives the kind of bike facility on a segment, for the map. The
+routing uses LTS, because the facility alone does not include the car speed.
 """
 
 import re
@@ -47,7 +51,11 @@ DEFAULT_LANES = {
 
 BIKE_LANE_VALUES = {"lane", "opposite_lane", "buffered_lane"}
 SEPARATED_VALUES = {"track", "opposite_track"}
+SHARED_LANE_VALUES = {"shared_lane", "share_busway"}
 CYCLEWAY_KEYS = ("cycleway", "cycleway:both", "cycleway:right", "cycleway:left")
+# OSM tags a buffered lane as cycleway:<side>=lane with cycleway:<side>:buffer=yes
+# (or a width). "buffered_lane" is an old value that few ways use.
+BUFFER_KEYS = tuple(f"{key}:buffer" for key in CYCLEWAY_KEYS)
 
 
 def _values(tag):
@@ -98,6 +106,42 @@ def _cycleway_values(tags):
     return found
 
 
+def _has_buffer(tags, cycleway):
+    if "buffered_lane" in cycleway:
+        return True
+    for key in BUFFER_KEYS:
+        if any(v not in ("no", "none", "0") for v in _values(tags.get(key))):
+            return True
+    return False
+
+
+# The bike facility types, from the best to the worst. Keep the same keys in js/map.js.
+BIKE_TYPES = ("path", "shared_path", "buffered", "lane", "sharrow", "none")
+
+
+def bike_type(tags):
+    """Return the bike facility of a segment: one of BIKE_TYPES.
+
+    path         a bike path, or a bike track that is separated from cars
+    shared_path  a path or walkway that bikes share with people on foot
+    buffered     a painted bike lane with a buffer from the cars
+    lane         a painted bike lane
+    sharrow      a shared lane marking in the car lane
+    none         a street with no bike facility
+    """
+    highway = _highway(tags)
+    cycleway = _cycleway_values(tags)
+    if highway == "cycleway" or cycleway & SEPARATED_VALUES:
+        return "path"
+    if highway in CAR_FREE:
+        return "path" if "designated" in _values(tags.get("bicycle")) else "shared_path"
+    if cycleway & BIKE_LANE_VALUES:
+        return "buffered" if _has_buffer(tags, cycleway) else "lane"
+    if cycleway & SHARED_LANE_VALUES:
+        return "sharrow"
+    return "none"
+
+
 def lts(tags):
     """Return the LTS level (1-4) for a street segment with these OSM tags."""
     highway = _highway(tags)
@@ -119,7 +163,11 @@ def lts(tags):
             by_speed = 3
         else:
             by_speed = 4
-        return max(by_lanes, by_speed)
+        level = max(by_lanes, by_speed)
+        # A buffer keeps the cars farther away. It never makes a street LTS 1.
+        if _has_buffer(tags, cycleway) and level > 2:
+            level -= 1
+        return level
 
     # Rule 3: mixed traffic. Furth table by speed limit and total lanes.
     if speed <= 25:

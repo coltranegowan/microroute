@@ -22,7 +22,17 @@ Then open http://localhost:8000. Click the map to set the start (A), then click 
 - **Directions:** the panel lists each turn of the route. Click a step to zoom the map to it.
 - **Read directions aloud:** the browser speaks the steps with the Web Speech API. The button does not show in a browser that cannot speak.
 - **Bike racks:** each rack is a green bike-parking square, and a locked enclosure has a padlock badge. The racks show at zoom 16 and closer. After a route, the racks within 150 m of B show at full size at every zoom, and the nearest one has a gold ring. The panel names that rack, and the spoken directions say it at the end.
-- **Colorblind mode:** the route and the legend show each stress level as a line pattern, not only a color. The browser keeps the setting for the next visit.
+- **Colorblind mode:** the route, the bike lane layer and the legend show each bike lane type as a line pattern, not only a color. The browser keeps the setting for the next visit.
+
+## Bike lanes and stress
+
+The map and the route colors show the type of bike facility on each street: bike path, path shared with
+people on foot, buffered bike lane, painted bike lane, sharrow, or none. The types come from the OSM
+`cycleway` tags (`bike_type()` in [scripts/lts.py](scripts/lts.py)).
+
+The **Safest** setting does not use the type alone. It uses the Level of Traffic Stress (LTS 1–4), which
+also includes the car speed and the number of lanes. A painted bike lane next to fast traffic is high
+stress. The route summary shows the part of the route at LTS 1–2 as **Low stress**.
 
 ## Build the street graph
 
