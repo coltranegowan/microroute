@@ -8,6 +8,16 @@ const LTS_COLOR = {
   4: '#b2182b',
 };
 
+// Colorblind mode: each LTS level also gets a line pattern, so a rider can
+// read the stress with no colors. The legend in css/style.css shows the same
+// patterns. The white line under the route shows in the gaps.
+const LTS_PATTERN = {
+  1: null, // solid
+  2: '14 7', // long dashes
+  3: '5 7', // short dashes
+  4: '1 9', // dots
+};
+
 // area: the outline of the usable area, [[lat, lon], ...], from js/area.js.
 // panel: an element over the map, for example the route panel. The first view
 // keeps the area out from under it.
@@ -88,17 +98,37 @@ export function createPin(latlng, kind) {
 
 // Draw a route from js/routing.js. Each edge gets the color of its LTS level.
 // A white line under the colors keeps the route clear on the map tiles.
-export function drawRoute(map, route) {
+// colorblind: true also gives each LTS level its line pattern.
+export function drawRoute(map, route, { colorblind = false } = {}) {
   const layer = L.layerGroup();
-  L.polyline(route.points, { color: '#ffffff', weight: 9, opacity: 0.9, interactive: false }).addTo(layer);
+  L.polyline(route.points, {
+    color: '#ffffff',
+    weight: colorblind ? 11 : 9,
+    opacity: 0.9,
+    interactive: false,
+  }).addTo(layer);
 
   for (const segment of route.segments) {
     L.polyline(segment.points, {
       color: LTS_COLOR[segment.lts],
-      weight: 5,
+      weight: colorblind ? 6 : 5,
       opacity: 1,
+      dashArray: colorblind ? LTS_PATTERN[segment.lts] : null,
+      lineCap: 'round',
       interactive: false,
     }).addTo(layer);
   }
   return layer.addTo(map);
+}
+
+// A ring that marks the point of a step in the directions.
+export function createStepMarker(latlng) {
+  return L.circleMarker(latlng, {
+    radius: 10,
+    color: '#182b49',
+    weight: 3,
+    fillColor: '#ffcd00',
+    fillOpacity: 0.9,
+    interactive: false,
+  });
 }

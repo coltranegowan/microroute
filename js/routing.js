@@ -167,7 +167,7 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
 }
 
 // The points of an edge, in the direction from `from` to `to`.
-function edgePoints(graph, edge) {
+export function edgePoints(graph, edge) {
   const from = graph.nodes.get(edge.from);
   const to = graph.nodes.get(edge.to);
   if (!edge.geometry) {

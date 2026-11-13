@@ -231,6 +231,99 @@ select,
 .swatch.lts3 { background: var(--lts3); }
 .swatch.lts4 { background: var(--lts4); }
 
+/* Colorblind mode: the same line patterns as LTS_PATTERN in js/map.js. */
+.colorblind .swatch {
+  height: 7px;
+}
+
+.colorblind .swatch.lts2 {
+  background: repeating-linear-gradient(90deg, var(--lts2) 0 9px, transparent 9px 13px);
+}
+
+.colorblind .swatch.lts3 {
+  background: repeating-linear-gradient(90deg, var(--lts3) 0 4px, transparent 4px 8px);
+}
+
+.colorblind .swatch.lts4 {
+  background: radial-gradient(circle, var(--lts4) 0 3px, transparent 3.5px) 0 0 / 8px 7px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 2px 0 0;
+  accent-color: var(--navy);
+}
+
+/* Directions */
+
+.directions {
+  margin: 0 0 12px;
+}
+
+.directions[hidden] {
+  display: none;
+}
+
+.directions summary {
+  padding: 4px 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.steps {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  counter-increment: step;
+  border-radius: 6px;
+}
+
+.steps li.current {
+  background: #fff4c2; /* a light UCSD gold */
+}
+
+.steps .step {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  font-weight: 400;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border-radius: 6px;
+}
+
+.steps .step::before {
+  content: counter(step) ".";
+  min-width: 1.5em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.steps .step:hover {
+  background: #e8ecf4;
+}
+
+.step-length {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 button {
   width: 100%;
   padding: 8px;
@@ -241,6 +334,18 @@ button {
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+}
+
+button.secondary {
+  margin-bottom: 4px;
+  color: var(--navy);
+  background: #ffffff;
+  border: 2px solid var(--navy);
+}
+
+button:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
 }
 
 button:disabled {
@@ -286,5 +391,12 @@ button:disabled {
 
   .legend {
     display: none;
+  }
+
+  /* A rider in colorblind mode needs the legend to read the patterns. */
+  .colorblind .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 8px;
   }
 }

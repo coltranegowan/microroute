@@ -17,6 +17,12 @@ python3 -m http.server
 
 Then open http://localhost:8000. Click the map to set the start (A), then click again to set the end (B).
 
+## Accessibility
+
+- **Directions:** the panel lists each turn of the route. Click a step to zoom the map to it.
+- **Read directions aloud:** the browser speaks the steps with the Web Speech API. The button does not show in a browser that cannot speak.
+- **Colorblind mode:** the route and the legend show each stress level as a line pattern, not only a color. The browser keeps the setting for the next visit.
+
 ## Build the street graph
 
 ```sh
@@ -25,6 +31,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/test_lts.py
 node scripts/test_routing.mjs
 node scripts/test_search.mjs
+node scripts/test_directions.mjs
 .venv/bin/python scripts/build_graph.py
 .venv/bin/python scripts/build_places.py
 ```

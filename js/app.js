@@ -1,13 +1,16 @@
 // Entry point. Connects the map, routing, search, voice and reports parts.
 import { insideArea, loadArea } from './area.js';
-import { createMap, createPin, drawRoute, fitWithPanel } from './map.js';
+import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
+import { createMap, createPin, createStepMarker, drawRoute, fitWithPanel } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
+import { canSpeak, speak, stopSpeaking } from './voice.js';
 
 // A point that is farther than this from the nearest street is outside the map data.
 const MAX_SNAP_M = 300;
 const MAP_POINT = 'Point on the map';
 const OUTSIDE = 'That point is outside the map area. Pick a point that is not gray.';
+const COLORBLIND_KEY = 'microroute.colorblind';
 
 const panel = document.querySelector('.panel');
 const area = await loadArea();
@@ -25,6 +28,11 @@ const ui = {
   distance: document.getElementById('distance'),
   time: document.getElementById('time'),
   lowStress: document.getElementById('low-stress'),
+  directions: document.getElementById('directions'),
+  speak: document.getElementById('speak'),
+  stepCount: document.getElementById('step-count'),
+  steps: document.getElementById('steps'),
+  colorblind: document.getElementById('colorblind'),
   clear: document.getElementById('clear'),
 };
 
@@ -33,7 +41,12 @@ const state = {
   places: null,
   start: null, // Leaflet marker
   end: null, // Leaflet marker
+  endName: null, // the name of the place at pin B, from the search
+  route: null,
   routeLayer: null,
+  steps: [], // from js/directions.js
+  stepMarker: null,
+  speaking: false,
 };
 
 function setStatus(text, isError = false) {
@@ -55,7 +68,115 @@ function clearRoute() {
     state.routeLayer.remove();
     state.routeLayer = null;
   }
+  state.route = null;
   ui.summary.hidden = true;
+  clearDirections();
+}
+
+// Directions
+
+function clearDirections() {
+  stopReading();
+  state.steps = [];
+  state.stepMarker?.remove();
+  state.stepMarker = null;
+  ui.steps.replaceChildren();
+  ui.directions.hidden = true;
+}
+
+function showDirections(route) {
+  state.steps = makeDirections(state.graph, route, state.endName ?? 'point B');
+  ui.steps.replaceChildren(...state.steps.map((step, i) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'step';
+    const text = document.createElement('span');
+    text.textContent = step.text;
+    button.append(text);
+    if (step.length > 0) {
+      const length = document.createElement('span');
+      length.className = 'step-length';
+      length.textContent = formatStepDistance(step.length);
+      button.append(length);
+    }
+    button.addEventListener('click', () => showStep(i));
+    const item = document.createElement('li');
+    item.append(button);
+    return item;
+  }));
+  ui.stepCount.textContent = state.steps.length;
+  ui.directions.hidden = false;
+}
+
+// Mark the point of step i on the map, and zoom to it. The panel does not cover the point.
+function showStep(i) {
+  const { point } = state.steps[i];
+  if (state.stepMarker) {
+    state.stepMarker.setLatLng(point);
+  } else {
+    state.stepMarker = createStepMarker(point).addTo(map);
+  }
+  fitWithPanel(map, L.latLngBounds([point, point]), panel, { maxZoom: Math.max(map.getZoom(), 17) });
+}
+
+// Show which step the app reads now. i = -1 removes the mark.
+function markStep(i) {
+  ui.steps.querySelectorAll('li').forEach((item, j) => {
+    item.classList.toggle('current', j === i);
+    if (j === i) {
+      item.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+function setReading(on) {
+  state.speaking = on;
+  ui.speak.textContent = on ? 'Stop reading' : 'Read directions aloud';
+  ui.speak.setAttribute('aria-pressed', String(on));
+}
+
+function startReading() {
+  setReading(true);
+  speak(state.steps.map(spokenStep), (i) => {
+    markStep(i);
+    if (i < 0) {
+      setReading(false);
+    } else {
+      showStep(i);
+    }
+  });
+}
+
+function stopReading() {
+  if (state.speaking) {
+    stopSpeaking();
+    setReading(false);
+    markStep(-1);
+  }
+}
+
+// Colorblind mode
+
+function loadColorblind() {
+  try {
+    return localStorage.getItem(COLORBLIND_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+function setColorblind(on) {
+  document.body.classList.toggle('colorblind', on);
+  ui.colorblind.checked = on;
+  try {
+    localStorage.setItem(COLORBLIND_KEY, on ? 'on' : 'off');
+  } catch {
+    // The setting then lasts only until the page closes.
+  }
+  if (state.route) {
+    state.routeLayer.remove();
+    state.routeLayer = drawRoute(map, state.route, { colorblind: on });
+  }
 }
 
 function clearAll() {
@@ -64,6 +185,7 @@ function clearAll() {
   state.end?.remove();
   state.start = null;
   state.end = null;
+  state.endName = null;
   ui.from.value = '';
   ui.to.value = '';
   ui.clear.disabled = true;
@@ -107,12 +229,14 @@ function updateRoute({ fit = false } = {}) {
     return;
   }
 
-  state.routeLayer = drawRoute(map, route);
+  state.route = route;
+  state.routeLayer = drawRoute(map, route, { colorblind: ui.colorblind.checked });
   const lowStress = route.lengthByLts[1] + route.lengthByLts[2];
   ui.distance.textContent = formatDistance(route.length);
   ui.time.textContent = formatTime(route.time);
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
+  showDirections(route);
   setStatus('Drag A or B to change the route.');
   // Fit after the summary shows, because the summary changes the panel height.
   if (fit) {
@@ -130,10 +254,12 @@ function setPin(kind, latlng, title) {
     state[key] = createPin(latlng, kind).addTo(map);
     state[key].on('dragend', () => {
       input.value = MAP_POINT;
+      if (key === 'end') state.endName = null;
       updateRoute();
     });
   }
   state[key].options.title = title;
+  if (key === 'end') state.endName = title === MAP_POINT ? null : title;
   input.value = title;
   ui.clear.disabled = false;
 }
@@ -164,6 +290,7 @@ function onPick(kind) {
   return (result) => {
     const { place } = result;
     setPin(kind, [place.lat, place.lon], ui[kind === 'start' ? 'from' : 'to'].value);
+    if (kind === 'end') state.endName = result.room ? `${place.name}, room ${result.room}` : place.name;
     if (state.start && state.end) {
       updateRoute({ fit: true });
     } else {
@@ -180,6 +307,10 @@ map.on('click', onMapClick);
 ui.mode.addEventListener('change', () => updateRoute());
 ui.safety.addEventListener('input', () => updateRoute());
 ui.clear.addEventListener('click', clearAll);
+ui.colorblind.addEventListener('change', () => setColorblind(ui.colorblind.checked));
+ui.speak.hidden = !canSpeak;
+ui.speak.addEventListener('click', () => (state.speaking ? stopReading() : startReading()));
+setColorblind(loadColorblind());
 attachAutocomplete(ui.from, ui.fromList, () => state.places, onPick('start'));
 attachAutocomplete(ui.to, ui.toList, () => state.places, onPick('end'));
 
