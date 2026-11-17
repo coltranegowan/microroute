@@ -36,10 +36,13 @@ def load_area():
 EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface",
               "cycleway:buffer", "cycleway:both:buffer", "cycleway:right:buffer", "cycleway:left:buffer"]
 
-# The osmnx "bike" network does not include footways. Campus paths are often
-# footways with bicycle=yes, so a second query adds them.
+# The osmnx "bike" network does not include footways. A second query adds the
+# walking paths, and bike_type() in lts.py marks them as shared_path. It skips
+# a path where bikes must not ride, and a sidewalk, because the street next
+# to a sidewalk is already in the graph. Steps are not footways, so they stay out.
 BIKE_FILTER = ox._overpass._get_network_filter("bike")
-FOOTWAYS_FOR_BIKES = '["highway"~"footway|pedestrian"]["area"!~"yes"]["bicycle"~"yes|designated|permissive"]'
+FOOTWAYS_FOR_BIKES = ('["highway"~"^(footway|pedestrian)$"]["area"!~"yes"]'
+                      '["bicycle"!~"^(no|dismount)$"]["footway"!~"^sidewalk$"]')
 
 
 def download():

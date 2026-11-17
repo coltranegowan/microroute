@@ -29,6 +29,8 @@ Then open http://localhost:8000. Click the map to set the start (A), then click 
 The map and the route colors show the type of bike facility on each street: bike path, path shared with
 people on foot, buffered bike lane, painted bike lane, sharrow, or none. The types come from the OSM
 `cycleway` tags (`bike_type()` in [scripts/lts.py](scripts/lts.py)).
+All walking paths are in the graph as paths shared with people on foot, except sidewalks, steps and paths
+where OSM says bikes must not ride (`bicycle=no` or `dismount`).
 
 The **Safest** setting does not use the type alone. It uses the Level of Traffic Stress (LTS 1–4), which
 also includes the car speed and the number of lanes. A painted bike lane next to fast traffic is high

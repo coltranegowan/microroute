@@ -71,7 +71,7 @@ for (const [from, to, w] of TRIPS) {
     check(street !== before || street.startsWith('the '), `${name}: step ${i + 1} repeats ${street}`);
   }
   // The first point is the start of the route.
-  check(steps[0].point === route.points[0], `${name}: the first step is not at the start`);
+  check(steps[0].point.join() === route.points[0].join(), `${name}: the first step is not at the start`);
 }
 
 console.log(failures ? `\n${failures} checks failed` : '\nAll checks passed');
