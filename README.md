@@ -65,14 +65,25 @@ routes and the search stay inside it.
 4. Run `scripts/build_graph.py`, `scripts/build_places.py` and `scripts/build_racks.py` again.
 5. Run the tests, then commit the four data files.
 
-## Draw the traffic zones
+## Class change crowds
 
-A traffic zone is a group of street segments that are busy at certain times, for example at class change.
+The paths in [data/traffic-zones.json](data/traffic-zones.json) are crowded in the 10 minutes between classes:
+
+- Mon/Wed/Fri: 8:50–9:00 AM, 9:50–10:00 AM, and each hour until 7:50–8:00 PM.
+- Tue/Thu: 9:20–9:30 AM, 10:50–11:00 AM, and each 90 minutes until 7:50–8:00 PM.
+
+The rider picks **Leave: Now** or a day and a time. At a class change, a high zone makes its paths 2 times
+slower and a medium zone 1.5 times slower. The route avoids them where it can, the map shows them as pink
+bands, and the route time includes the delay. The schedule is `CLASS_CHANGES` in [js/traffic.js](js/traffic.js).
+
+To change the zones:
 
 1. Open https://coltranegowan.github.io/microroute/tools/draw-traffic.html, or the same path on the local server.
-2. Pick **High** or **Medium**, then paint over the busy streets. The streets that the paint covers change color.
-3. Type a name and the times for each zone.
-4. Click **Download traffic-zones.json** and put the file in `data/`.
+2. Pick **High** or **Medium**, then paint over the crowded paths. The paths that the paint covers change color.
+3. Click **Download traffic-zones.json** and put the file in `data/`. Replace the old file.
+4. Run `node scripts/test_traffic.mjs`, then commit the file.
+
+Paint on a footway that is not in the street graph has no effect. The graph has a footway only if OSM marks it as open to bikes.
 
 ## Add a UCSD building code
 

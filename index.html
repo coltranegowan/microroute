@@ -57,11 +57,33 @@
         <p id="safety-help" class="help">Move to the right to stay off busy streets.</p>
       </div>
 
+      <div class="field">
+        <label for="leave">Leave</label>
+        <div class="leave-row">
+          <select id="leave">
+            <option value="now">Now</option>
+            <option value="later">At a time</option>
+          </select>
+          <select id="leave-day" aria-label="Day" hidden>
+            <option value="1">Mon</option>
+            <option value="2">Tue</option>
+            <option value="3">Wed</option>
+            <option value="4">Thu</option>
+            <option value="5">Fri</option>
+            <option value="6">Sat</option>
+            <option value="0">Sun</option>
+          </select>
+          <input id="leave-time" type="time" aria-label="Time" hidden>
+        </div>
+        <p id="crowd-help" class="help" hidden></p>
+      </div>
+
       <dl id="summary" class="summary" hidden>
         <div><dt>Distance</dt><dd id="distance"></dd></div>
         <div><dt>Time</dt><dd id="time"></dd></div>
         <div><dt>Low stress</dt><dd id="low-stress"></dd></div>
       </dl>
+      <p id="crowd-note" class="help crowd-note" hidden></p>
 
       <button id="nearest-rack" type="button" class="nearest-rack" hidden></button>
 
@@ -82,6 +104,7 @@
         <li><span class="swatch none"></span>No bike lane (route only)</li>
         <li><span class="legend-rack" data-kind="rack"></span>Bike rack</li>
         <li><span class="legend-rack" data-kind="enclosure"></span>Locked bike enclosure</li>
+        <li id="crowd-key" hidden><span class="swatch crowd"></span>Crowded now: class change</li>
       </ul>
 
       <label class="check">

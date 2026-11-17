@@ -2,11 +2,12 @@
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
 import {
-  RACK_MIN_ZOOM, createBikeLayer, createMap, createPin, createRackLayer, createStepMarker, drawRoute, fillRackLegend,
-  fitWithPanel,
+  RACK_MIN_ZOOM, createBikeLayer, createCrowdLayer, createMap, createPin, createRackLayer, createStepMarker, drawRoute,
+  fillRackLegend, fitWithPanel,
 } from './map.js';
 import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
+import { classChangeAt, formatMinute, loadTrafficZones, nextClassChange, trafficAt } from './traffic.js';
 import { canSpeak, speak, stopSpeaking } from './voice.js';
 
 // A point that is farther than this from the nearest street is outside the map data.
@@ -31,6 +32,12 @@ const ui = {
   toList: document.getElementById('to-list'),
   mode: document.getElementById('mode'),
   safety: document.getElementById('safety'),
+  leave: document.getElementById('leave'),
+  leaveDay: document.getElementById('leave-day'),
+  leaveTime: document.getElementById('leave-time'),
+  crowdHelp: document.getElementById('crowd-help'),
+  crowdNote: document.getElementById('crowd-note'),
+  crowdKey: document.getElementById('crowd-key'),
   summary: document.getElementById('summary'),
   distance: document.getElementById('distance'),
   time: document.getElementById('time'),
@@ -61,6 +68,9 @@ const state = {
   bikeLanes: null, // from createBikeLayer() in js/map.js
   racks: null, // from createRackLayer() in js/map.js
   nearestRack: null, // { marker, meters }: the rack nearest to pin B
+  zones: [], // from js/traffic.js
+  crowds: null, // from createCrowdLayer() in js/map.js
+  crowdWindow: null, // the class change window that the route uses, as 'start-end', or ''
 };
 
 function setStatus(text, isError = false) {
@@ -84,6 +94,7 @@ function clearRoute() {
   }
   state.route = null;
   ui.summary.hidden = true;
+  ui.crowdNote.hidden = true;
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
   state.racks?.focus(null);
@@ -254,6 +265,52 @@ function goToNearestRack() {
   marker.openPopup(); // the nearest rack is big, so it shows at every zoom
 }
 
+// Departure time and class change crowds
+
+// The departure time: now, or the day and time in the Leave fields, in this week.
+function departure() {
+  const date = new Date();
+  if (ui.leave.value === 'later') {
+    const [h, m] = (ui.leaveTime.value || '00:00').split(':').map(Number);
+    date.setDate(date.getDate() + Number(ui.leaveDay.value) - date.getDay());
+    date.setHours(h, m, 0, 0);
+  }
+  return date;
+}
+
+function windowKey(date) {
+  return classChangeAt(date)?.join('-') ?? '';
+}
+
+// Show the crowded paths at a class change, and say when the next one is.
+function updateCrowds() {
+  const date = departure();
+  const slot = classChangeAt(date);
+  state.crowdWindow = windowKey(date);
+  const hasZones = state.zones.some((zone) => zone.shares.size > 0);
+  state.crowds?.show(Boolean(slot));
+  ui.crowdKey.hidden = !slot || !hasZones;
+  ui.crowdHelp.hidden = !hasZones;
+  const when = ui.leave.value === 'now' ? 'now' : 'at this time';
+  if (slot) {
+    ui.crowdHelp.textContent = `Class change ${when} (${formatMinute(slot[0])}–${formatMinute(slot[1])}). `
+      + 'The pink bands show the crowded paths. The route avoids them where it can.';
+  } else {
+    const next = nextClassChange(date);
+    ui.crowdHelp.textContent = next
+      ? `No class change ${when}. The next one starts at ${formatMinute(next[0])}.`
+      : `No class change ${when}.`;
+  }
+}
+
+function onLeaveChange() {
+  const later = ui.leave.value === 'later';
+  ui.leaveDay.hidden = !later;
+  ui.leaveTime.hidden = !later;
+  updateCrowds();
+  updateRoute();
+}
+
 // Colorblind mode
 
 function setColorblind(on) {
@@ -311,6 +368,7 @@ function updateRoute({ fit = false } = {}) {
   const route = findRoute(state.graph, from.id, to.id, {
     w: Number(ui.safety.value),
     mode: ui.mode.value,
+    traffic: trafficAt(state.zones, departure()),
   });
   if (!route) {
     setStatus('No route found between these points.', true);
@@ -324,6 +382,10 @@ function updateRoute({ fit = false } = {}) {
   ui.time.textContent = formatTime(route.time);
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
+  if (route.crowdDelay >= 30) {
+    ui.crowdNote.textContent = `The time includes ${formatTime(route.crowdDelay)} for class change crowds.`;
+    ui.crowdNote.hidden = false;
+  }
   showDirections(route);
   showNearestRack();
   setStatus('Drag A or B to change the route.');
@@ -395,6 +457,26 @@ function onPick(kind) {
 map.on('click', onMapClick);
 ui.mode.addEventListener('change', () => updateRoute());
 ui.safety.addEventListener('input', () => updateRoute());
+ui.leave.addEventListener('change', () => {
+  if (ui.leave.value === 'later' && !ui.leaveTime.value) {
+    const now = new Date();
+    ui.leaveDay.value = String(now.getDay());
+    ui.leaveTime.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+  onLeaveChange();
+});
+ui.leaveDay.addEventListener('change', onLeaveChange);
+ui.leaveTime.addEventListener('change', onLeaveChange);
+// With Leave = Now, check each 20 s for the start or the end of a class change.
+// The route changes only then, and not while the app reads the directions aloud.
+setInterval(() => {
+  if (ui.leave.value === 'now' && windowKey(departure()) !== state.crowdWindow) {
+    updateCrowds();
+    if (!state.speaking) {
+      updateRoute();
+    }
+  }
+}, 20000);
 ui.clear.addEventListener('click', clearAll);
 ui.colorblind.addEventListener('change', () => setColorblind(ui.colorblind.checked));
 ui.speak.hidden = !canSpeak;
@@ -424,6 +506,20 @@ try {
 } catch (error) {
   console.error(error);
   setStatus('The street map did not load. Refresh the page to try again.', true);
+}
+
+// The routes work with no traffic zones, so a zone error shows only in the console.
+try {
+  if (state.graph) {
+    state.zones = await loadTrafficZones(state.graph);
+    state.crowds = createCrowdLayer(map, state.graph, state.zones);
+    updateCrowds();
+    if (state.route) {
+      updateRoute();
+    }
+  }
+} catch (error) {
+  console.error(error);
 }
 
 // The routes work with no racks, so a rack error shows only in the console.

@@ -1,6 +1,6 @@
 # UCSD MicroMap Build Plan
 
-SYN 100, Fall 2026. Last change: Oct 19, 2026. The dates come from the SYN 100 Canvas modules page.
+SYN 100, Fall 2026. Last change: Nov 17, 2026. The dates come from the SYN 100 Canvas modules page.
 
 UCSD MicroMap is an interactive map for bike, e-bike and scooter riders. It gives the safest route or the fastest route.
 The study area is UC San Diego, University City and La Jolla Shores. Pedestrian and car routes are out of scope.
@@ -26,7 +26,7 @@ OSM + SANDAG + USGS  →  scripts/ (Python + osmnx)  →  data/graph.json  →  
 | Sources | OSM, SANDAG, USGS | Streets, bike network, elevation |
 | Build, one time | `scripts/` | Calculates LTS and slope for each street segment |
 | Output | `data/graph.json` | Nodes and edges, with time and stress |
-| Team input | `data/traffic.json` | Traffic zones and the times when they are busy |
+| Team input | `data/traffic-zones.json` | Crowded paths at class change, painted with `tools/draw-traffic.html` |
 | In the browser | `js/routing.js` | A* search on the graph |
 | Display | `js/map.js` | Leaflet map |
 
@@ -49,7 +49,7 @@ cost = time × traffic × (1 + w × stress)
 ```
 
 `w` is the safety weight. `stress` is the LTS level of the street segment.
-`traffic` is 1, except on a segment in a traffic zone during its busy time. There, it is the multiplier from `data/traffic.json`, for example 1.5.
+`traffic` is 1, except on a crowded path in a traffic zone during a class change. There, it is 2 for a high zone and 1.5 for a medium zone. On a segment that the zone covers only in part, the value is 1 + (multiplier − 1) × the covered part.
 
 | Stress level | Typical street | Multiplier when `w = 1` |
 | --- | --- | --- |
@@ -62,19 +62,17 @@ When `w = 0`, every multiplier is ×1 and the route is the fastest route. A high
 The rider picks a departure time. The app uses that time to find which traffic zones are busy.
 No multiplier is less than 1. Thus the A* heuristic stays admissible.
 
-### Traffic zone format
+### Traffic zones
 
-```json
-{
-  "name": "Library Walk at class change",
-  "segments": ["<edge ids>"],
-  "days": ["Mon", "Wed", "Fri"],
-  "windows": [["09:50", "10:05"], ["10:50", "11:05"]],
-  "multiplier": 1.5
-}
-```
+The team paints the crowded paths with `tools/draw-traffic.html`. The tool saves `data/traffic-zones.json`, a GeoJSON file with the brush strokes and the level (high or medium) of each zone.
+The app finds the street segments under the strokes when it loads (`js/traffic.js`). Thus the zones stay correct after a new graph build.
 
-The times above are only examples. Get the real times from the UCSD class schedule and from the team observations.
+All zones are busy in the 10 minutes between classes:
+
+| Days | Class length | Busy windows |
+| --- | --- | --- |
+| Mon, Wed, Fri | 50 min | 8:50–9:00 AM, then each hour until 7:50–8:00 PM |
+| Tue, Thu | 80 min | 9:20–9:30 AM, then each 90 min until 7:50–8:00 PM |
 
 ## Schedule
 

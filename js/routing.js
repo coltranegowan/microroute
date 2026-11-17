@@ -3,8 +3,9 @@
 // cost = time × traffic × (1 + w × stress)
 //
 // time is the travel time in seconds, stress is the LTS level (1-4) and w is
-// the safety weight. When w = 0, the route is the fastest route. traffic is 1
-// for now. The traffic zones from data/traffic.json come in Week 7.
+// the safety weight. When w = 0, the route is the fastest route. traffic is
+// the crowd multiplier from js/traffic.js: more than 1 on a crowded path at a
+// class change, else 1.
 //
 // This file has no browser code except loadGraph(), so Node can test it.
 
@@ -111,7 +112,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
       continue; // an old entry for a node that was already done
     }
     if (id === goalId) {
-      return makeRoute(graph, cameBy, startId, goalId, bestCost.get(goalId), speed);
+      return makeRoute(graph, cameBy, startId, goalId, bestCost.get(goalId), speed, traffic);
     }
     closed.add(id);
 
@@ -130,7 +131,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
   return null;
 }
 
-function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
+function makeRoute(graph, cameBy, startId, goalId, cost, speed, traffic) {
   const edges = [];
   for (let id = goalId; id !== startId; id = cameBy.get(id).from) {
     edges.push(cameBy.get(id));
@@ -155,13 +156,16 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed) {
     }
   }
   const length = edges.reduce((sum, edge) => sum + edge.length, 0);
+  // A crowd slows the rider, so the time includes the traffic multiplier.
+  const crowdDelay = edges.reduce((sum, edge) => sum + (edge.length / speed) * (traffic(edge) - 1), 0);
 
   return {
     edges,
     points, // [[lat, lon], ...] for a Leaflet polyline
     segments, // [{ bike, points }, ...]: runs of edges with the same bike facility type
     length, // m
-    time: length / speed, // s, with no traffic or slope
+    time: length / speed + crowdDelay, // s, with the crowds but no slope
+    crowdDelay, // s
     cost,
     lengthByLts,
   };

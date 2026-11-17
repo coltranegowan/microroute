@@ -223,6 +223,10 @@ select,
   margin: 3px 0;
 }
 
+.legend li[hidden] {
+  display: none;
+}
+
 .swatch {
   display: inline-block;
   width: 24px;
@@ -236,6 +240,30 @@ select,
 .swatch.lane { background: var(--bike-lane); }
 .swatch.sharrow { background: var(--bike-sharrow); }
 .swatch.none { background: var(--bike-none); }
+
+/* The same color as CROWD_STYLE in js/map.js: dark for a high zone, light for a medium zone. */
+.swatch.crowd {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(194, 24, 91, 0.45) 0 50%, rgba(194, 24, 91, 0.22) 50%);
+}
+
+.leave-row {
+  display: flex;
+  gap: 6px;
+}
+
+.leave-row select,
+.leave-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  font: inherit;
+}
+
+.crowd-note {
+  margin: -6px 0 12px;
+}
 
 /* Colorblind mode: the same line patterns as BIKE_STYLE in js/map.js. */
 .colorblind .swatch {

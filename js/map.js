@@ -309,3 +309,54 @@ export function createStepMarker(latlng) {
     interactive: false,
   });
 }
+
+// The crowded paths of the traffic zones (js/traffic.js), as wide soft bands
+// under the bike lanes. The app shows them only at a class change. Both levels
+// use one hue, and a high zone is darker, so the levels read with no colors.
+// No bike lane type uses this hue.
+const CROWD_STYLE = { high: { color: '#c2185b', opacity: 0.45 }, medium: { color: '#c2185b', opacity: 0.22 } };
+
+// Returns an object:
+//   show(on)   put the bands on the map, or remove them
+export function createCrowdLayer(map, graph, zones) {
+  if (!map.getPane('crowds')) {
+    map.createPane('crowds').style.zIndex = 340; // under the bike lanes (350)
+  }
+  const renderer = L.canvas({ pane: 'crowds' });
+  const layer = L.layerGroup();
+  const edges = new Map([...graph.nodes.values()].flatMap((node) => node.out.map((edge) => [edge.id, edge])));
+  // A high zone wins where a high zone and a medium zone share a path.
+  const levels = new Map();
+  for (const { level, shares } of zones) {
+    for (const id of shares.keys()) {
+      if (levels.get(id) !== 'high') {
+        levels.set(id, level);
+      }
+    }
+  }
+  const seen = new Set();
+  for (const [id, level] of levels) {
+    const edge = edges.get(id);
+    // The graph has most paths two times, one for each direction.
+    const key = edge && [edge.from, edge.to].sort().join('-') + edge.length;
+    if (!edge || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    L.polyline(edgePoints(graph, edge), {
+      renderer,
+      ...CROWD_STYLE[level],
+      weight: 14,
+      lineCap: 'round',
+      lineJoin: 'round',
+      interactive: false,
+    }).addTo(layer);
+  }
+
+  return {
+    show(on) {
+      if (on) layer.addTo(map);
+      else layer.remove();
+    },
+  };
+}
