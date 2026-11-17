@@ -65,6 +65,15 @@ routes and the search stay inside it.
 4. Run `scripts/build_graph.py`, `scripts/build_places.py` and `scripts/build_racks.py` again.
 5. Run the tests, then commit the four data files.
 
+## Draw the traffic zones
+
+A traffic zone is a group of street segments that are busy at certain times, for example at class change.
+
+1. Open https://coltranegowan.github.io/microroute/tools/draw-traffic.html, or the same path on the local server.
+2. Pick **High** or **Medium**, then paint over the busy streets. The streets that the paint covers change color.
+3. Type a name and the times for each zone.
+4. Click **Download traffic-zones.json** and put the file in `data/`.
+
 ## Add a UCSD building code
 
 OSM has codes for only a few campus buildings. To add a code, add a line to

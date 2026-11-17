@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draw Traffic Zones</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    :root {
+      --high: #d7301f;
+      --medium: #f59e0b;
+    }
+
+    .panel {
+      width: 330px;
+    }
+
+    .panel ol {
+      margin: 0 0 12px;
+      padding-left: 18px;
+    }
+
+    .panel li {
+      margin-bottom: 4px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .segmented.two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .segmented button {
+      padding: 6px 4px;
+      color: var(--navy);
+      background: #e8ecf4;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      color: #ffffff;
+      background: var(--navy);
+    }
+
+    .segmented button.level-high[aria-pressed="true"] { background: var(--high); }
+    .segmented button.level-medium[aria-pressed="true"] { color: #1a1a1a; background: var(--medium); }
+
+    .target {
+      margin: 0 0 12px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #f3f5f9;
+    }
+
+    .target button {
+      margin-left: 6px;
+      padding: 2px 8px;
+      font-size: 0.8rem;
+    }
+
+    .brush {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .brush input {
+      flex: 1;
+    }
+
+    .zones {
+      margin: 0 0 12px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .zone {
+      margin-bottom: 8px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--high);
+      border-radius: 6px;
+    }
+
+    .zone.medium { border-left-color: var(--medium); }
+    .zone.active { outline: 2px solid var(--navy); }
+
+    .zone-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .zone-head span {
+      flex: 1;
+    }
+
+    .zone input,
+    .zone select {
+      width: 100%;
+      margin-bottom: 4px;
+      padding: 4px 6px;
+      font: inherit;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .zone-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .zone-buttons button,
+    .zone-head select {
+      padding: 4px;
+      font-size: 0.8rem;
+    }
+
+    .zone-head select {
+      width: auto;
+      margin: 0;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .buttons .wide {
+      grid-column: 1 / -1;
+    }
+
+    button.secondary,
+    .zone-buttons button {
+      color: var(--navy);
+      background: #e8ecf4;
+    }
+
+    .zone-label {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      font: 700 12px/18px system-ui, sans-serif;
+      text-align: center;
+      color: #ffffff;
+      background: var(--high);
+    }
+
+    .zone-label.medium {
+      color: #1a1a1a;
+      background: var(--medium);
+    }
+
+    .map-wrap.paint #map,
+    .map-wrap.erase #map {
+      cursor: crosshair;
+    }
+
+    #file {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Draw traffic zones</h1>
+    <p>Paint over the streets that are busy at class change</p>
+  </header>
+
+  <div class="map-wrap">
+    <main id="map" aria-label="Map for drawing the traffic zones"></main>
+
+    <aside class="panel" aria-label="Drawing controls">
+      <p id="status" class="status" role="status" aria-live="polite">Loading the streets…</p>
+      <ol>
+        <li>Pick <b>High</b> or <b>Medium</b>.</li>
+        <li>Click <b>Paint</b>. Then press and drag over the busy streets.
+          The streets under the paint change color.</li>
+        <li>Click <b>Move map</b> to pan. The mouse wheel zooms in all modes.</li>
+        <li>Each new stroke is a new zone. Click <b>Paint more</b> on a zone to add strokes to it.</li>
+        <li>Type the times in each zone, or tell Claude the times by zone number.</li>
+      </ol>
+
+      <div class="segmented two" role="group" aria-label="Traffic level for a new zone">
+        <button id="level-high" type="button" class="level-high" aria-pressed="true">High</button>
+        <button id="level-medium" type="button" class="level-medium" aria-pressed="false">Medium</button>
+      </div>
+
+      <div class="segmented" role="group" aria-label="Mode">
+        <button id="mode-move" type="button" aria-pressed="false">Move map</button>
+        <button id="mode-paint" type="button" aria-pressed="true">Paint</button>
+        <button id="mode-erase" type="button" aria-pressed="false">Erase</button>
+      </div>
+
+      <p id="target" class="target"></p>
+
+      <label class="brush">Brush width
+        <input id="brush" type="range" min="10" max="60" step="5" value="20">
+        <span id="brush-value">20 m</span>
+      </label>
+
+      <ul id="zones" class="zones" aria-label="Zones"></ul>
+
+      <div class="buttons">
+        <button id="undo" type="button" class="secondary">Undo</button>
+        <button id="clear" type="button" class="secondary">Clear all</button>
+        <button id="open" type="button" class="secondary wide">Open a saved file</button>
+        <button id="download" type="button" class="wide">Download traffic-zones.json</button>
+      </div>
+      <input id="file" type="file" accept=".json,application/json">
+      <p class="help">The browser keeps your drawing for the next visit.
+        Send the file to Claude, or put it in the <code>data/</code> folder of the project.</p>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module">
+    const STORAGE_KEY = 'microroute.trafficZones';
+    const COLORS = { high: '#d7301f', medium: '#f59e0b' };
+    const MULTIPLIERS = { high: 2, medium: 1.5 };
+    // A street segment belongs to a zone when the paint covers this part of its length.
+    // A cross street that the brush only touches at one end stays out.
+    const MIN_COVER = 0.5;
+    const SAMPLE_M = 5;
+
+    const statusEl = document.getElementById('status');
+    const ui = Object.fromEntries(
+      ['level-high', 'level-medium', 'mode-move', 'mode-paint', 'mode-erase', 'target', 'brush', 'brush-value',
+        'zones', 'undo', 'clear', 'open', 'download', 'file'].map((id) => [id, document.getElementById(id)]),
+    );
+    const wrap = document.querySelector('.map-wrap');
+
+    const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    map.setView([32.8801, -117.2340], 16);
+
+    const graph = await (await fetch('../data/graph.json')).json();
+
+    // Local flat projection in meters. Good enough for a few km.
+    const { south, north, west } = graph.meta.bbox;
+    const lat0 = (south + north) / 2;
+    const ky = 110574;
+    const kx = 111320 * Math.cos((lat0 * Math.PI) / 180);
+    const toXY = ([lat, lon]) => [(lon - west) * kx, (lat - south) * ky];
+
+    // Each edge gets sample points every SAMPLE_M along its line, and a box for a fast first test.
+    const edges = graph.edges.map((edge) => {
+      const line = edge.geometry?.length ? edge.geometry : [graph.nodes[edge.from], graph.nodes[edge.to]];
+      const xy = line.map(toXY);
+      const samples = [];
+      for (let i = 0; i < xy.length - 1; i += 1) {
+        const [[x1, y1], [x2, y2]] = [xy[i], xy[i + 1]];
+        const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / SAMPLE_M));
+        for (let k = 0; k < n; k += 1) {
+          samples.push([x1 + ((x2 - x1) * k) / n, y1 + ((y2 - y1) * k) / n]);
+        }
+      }
+      samples.push(xy[xy.length - 1]);
+      const xs = xy.map((p) => p[0]);
+      const ys = xy.map((p) => p[1]);
+      return { id: edge.id, line, samples, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
+    });
+
+    function pointSegmentDistance([px, py], [x1, y1], [x2, y2]) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len2 = dx * dx + dy * dy;
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
+      return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    }
+
+    function distanceToLine(point, xy) {
+      if (xy.length === 1) {
+        return Math.hypot(point[0] - xy[0][0], point[1] - xy[0][1]);
+      }
+      let best = Infinity;
+      for (let i = 0; i < xy.length - 1; i += 1) {
+        best = Math.min(best, pointSegmentDistance(point, xy[i], xy[i + 1]));
+      }
+      return best;
+    }
+
+    // Returns the ids of the edges that the strokes of a zone cover.
+    function matchEdges(zone) {
+      const radius = zone.brush / 2;
+      const strokes = zone.strokes.map((stroke) => {
+        const xy = stroke.map(toXY);
+        const xs = xy.map((p) => p[0]);
+        const ys = xy.map((p) => p[1]);
+        return { xy, box: [Math.min(...xs) - radius, Math.min(...ys) - radius, Math.max(...xs) + radius, Math.max(...ys) + radius] };
+      });
+      const ids = [];
+      for (const edge of edges) {
+        const near = strokes.filter(({ box }) => edge.box[0] <= box[2] && edge.box[2] >= box[0] && edge.box[1] <= box[3] && edge.box[3] >= box[1]);
+        if (near.length === 0) {
+          continue;
+        }
+        const covered = edge.samples.filter((point) => near.some(({ xy }) => distanceToLine(point, xy) <= radius)).length;
+        if (covered / edge.samples.length >= MIN_COVER) {
+          ids.push(edge.id);
+        }
+      }
+      return ids;
+    }
+
+    // State
+
+    let zones = []; // [{ id, level, name, times, brush, strokes: [[[lat, lon], ...]], edges: [ids] }]
+    let nextId = 1;
+    let level = 'high';
+    let mode = 'paint';
+    let activeId = null; // the zone that gets the next stroke, or null for a new zone
+    const history = [];
+
+    function snapshot() {
+      return JSON.stringify({ zones, nextId, activeId });
+    }
+
+    function save() {
+      history.push(snapshot());
+    }
+
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, snapshot());
+      } catch {
+        // The drawing still works with no storage.
+      }
+    }
+
+    function restore(text) {
+      ({ zones, nextId, activeId } = JSON.parse(text));
+    }
+
+    // Map layers
+
+    const renderer = L.canvas({ padding: 0.5 });
+    const streets = L.layerGroup().addTo(map);
+    edges.forEach((edge) => {
+      L.polyline(edge.line, { renderer, color: '#5f6670', weight: 2, opacity: 0.45, interactive: false }).addTo(streets);
+    });
+    const paintLayer = L.layerGroup().addTo(map);
+    const matchLayer = L.layerGroup().addTo(map);
+    const labelLayer = L.layerGroup().addTo(map);
+    const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
+
+    const metersPerPixel = () => (40075016.686 * Math.cos((lat0 * Math.PI) / 180)) / 2 ** (map.getZoom() + 8);
+
+    function drawMap() {
+      paintLayer.clearLayers();
+      matchLayer.clearLayers();
+      labelLayer.clearLayers();
+      // Medium first, so a street in a high zone shows as high.
+      const ordered = [...zones].sort((a, b) => (a.level === b.level ? 0 : a.level === 'medium' ? -1 : 1));
+      for (const zone of ordered) {
+        const weight = Math.max(4, zone.brush / metersPerPixel());
+        zone.strokes.forEach((stroke) => {
+          L.polyline(stroke, { renderer, color: COLORS[zone.level], weight, opacity: 0.25, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(paintLayer);
+        });
+        zone.edges.forEach((id) => {
+          L.polyline(edgeById.get(id).line, { renderer, color: COLORS[zone.level], weight: 5, opacity: 0.95, interactive: false }).addTo(matchLayer);
+        });
+        const first = zone.strokes[0]?.[0];
+        if (first) {
+          L.marker(first, {
+            interactive: false,
+            icon: L.divIcon({ className: '', html: `<div class="zone-label ${zone.level}">${zone.id}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
+          }).addTo(labelLayer);
+        }
+      }
+    }
+
+    // Panel
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    }
+
+    function drawPanel() {
+      ui.zones.innerHTML = zones.map((zone) => `
+        <li class="zone ${zone.level}${zone.id === activeId ? ' active' : ''}" data-id="${zone.id}">
+          <div class="zone-head">
+            <span>Zone ${zone.id} · ${zone.edges.length} segments</span>
+            <select data-field="level" aria-label="Level of zone ${zone.id}">
+              <option value="high"${zone.level === 'high' ? ' selected' : ''}>High</option>
+              <option value="medium"${zone.level === 'medium' ? ' selected' : ''}>Medium</option>
+            </select>
+          </div>
+          <input data-field="name" placeholder="Name, for example Library Walk" value="${escapeHtml(zone.name)}">
+          <input data-field="times" placeholder="Times, for example M/W/F 9:50–10:05" value="${escapeHtml(zone.times)}">
+          <div class="zone-buttons">
+            <button type="button" data-action="more">${zone.id === activeId ? 'Painting here' : 'Paint more'}</button>
+            <button type="button" data-action="delete">Delete</button>
+          </div>
+        </li>`).join('');
+
+      ui['level-high'].setAttribute('aria-pressed', level === 'high');
+      ui['level-medium'].setAttribute('aria-pressed', level === 'medium');
+      ['move', 'paint', 'erase'].forEach((m) => ui[`mode-${m}`].setAttribute('aria-pressed', mode === m));
+      wrap.classList.toggle('paint', mode === 'paint');
+      wrap.classList.toggle('erase', mode === 'erase');
+
+      ui.target.innerHTML = activeId === null
+        ? `The next stroke makes a new <b>${level}</b> zone.`
+        : `The next stroke goes to zone ${activeId}.<button type="button" id="new-zone">New zone</button>`;
+      document.getElementById('new-zone')?.addEventListener('click', () => {
+        activeId = null;
+        drawPanel();
+      });
+
+      const segments = zones.reduce((sum, zone) => sum + zone.edges.length, 0);
+      statusEl.textContent = zones.length === 0
+        ? 'Paint over a busy street to make the first zone.'
+        : `${zones.length} zones, ${segments} street segments.`;
+      ui.undo.disabled = history.length === 0;
+      ui.clear.disabled = zones.length === 0;
+      ui.download.disabled = zones.length === 0;
+    }
+
+    function redraw() {
+      drawMap();
+      drawPanel();
+      persist();
+    }
+
+    ui.zones.addEventListener('input', (event) => {
+      const zone = zones.find((z) => z.id === Number(event.target.closest('.zone').dataset.id));
+      const field = event.target.dataset.field;
+      if (field === 'name' || field === 'times') {
+        zone[field] = event.target.value; // no redraw, so the text box keeps the focus
+        persist();
+      }
+    });
+
+    ui.zones.addEventListener('change', (event) => {
+      if (event.target.dataset.field === 'level') {
+        const zone = zones.find((z) => z.id === Number(event.target.closest('.zone').dataset.id));
+        save();
+        zone.level = event.target.value;
+        redraw();
+      }
+    });
+
+    ui.zones.addEventListener('click', (event) => {
+      const action = event.target.dataset.action;
+      if (!action) {
+        return;
+      }
+      const id = Number(event.target.closest('.zone').dataset.id);
+      if (action === 'more') {
+        activeId = id;
+        setMode('paint');
+      } else if (action === 'delete') {
+        save();
+        zones = zones.filter((z) => z.id !== id);
+        if (activeId === id) {
+          activeId = null;
+        }
+        redraw();
+      }
+    });
+
+    // Modes
+
+    function setMode(next) {
+      mode = next;
+      if (mode === 'move') {
+        map.dragging.enable();
+      } else {
+        map.dragging.disable();
+      }
+      drawPanel();
+    }
+
+    ui['mode-move'].addEventListener('click', () => setMode('move'));
+    ui['mode-paint'].addEventListener('click', () => setMode('paint'));
+    ui['mode-erase'].addEventListener('click', () => setMode('erase'));
+    ui['level-high'].addEventListener('click', () => { level = 'high'; drawPanel(); });
+    ui['level-medium'].addEventListener('click', () => { level = 'medium'; drawPanel(); });
+
+    ui.brush.addEventListener('input', () => {
+      ui['brush-value'].textContent = `${ui.brush.value} m`;
+    });
+
+    // Paint with the mouse, a pen or a finger.
+
+    const container = map.getContainer();
+    let stroke = null;
+    let liveLine = null;
+    let lastPoint = null;
+
+    container.addEventListener('pointerdown', (event) => {
+      if (mode !== 'paint' || event.button !== 0 || event.target.closest('.leaflet-control')) {
+        return;
+      }
+      container.setPointerCapture(event.pointerId);
+      const latlng = map.mouseEventToLatLng(event);
+      stroke = [[latlng.lat, latlng.lng]];
+      lastPoint = map.mouseEventToContainerPoint(event);
+      const weight = Math.max(4, Number(ui.brush.value) / metersPerPixel());
+      const color = COLORS[zones.find((z) => z.id === activeId)?.level ?? level];
+      liveLine = L.polyline(stroke, { renderer, color, weight, opacity: 0.35, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(map);
+    });
+
+    container.addEventListener('pointermove', (event) => {
+      if (!stroke) {
+        return;
+      }
+      const point = map.mouseEventToContainerPoint(event);
+      if (point.distanceTo(lastPoint) < 4) {
+        return;
+      }
+      lastPoint = point;
+      const latlng = map.containerPointToLatLng(point);
+      stroke.push([latlng.lat, latlng.lng]);
+      liveLine.setLatLngs(stroke);
+    });
+
+    function endStroke() {
+      if (!stroke) {
+        return;
+      }
+      liveLine.remove();
+      save();
+      let zone = zones.find((z) => z.id === activeId);
+      if (!zone) {
+        zone = { id: nextId, level, name: '', times: '', brush: Number(ui.brush.value), strokes: [], edges: [] };
+        nextId += 1;
+        zones.push(zone);
+      }
+      zone.strokes.push(stroke);
+      zone.edges = matchEdges(zone);
+      stroke = null;
+      redraw();
+    }
+
+    container.addEventListener('pointerup', endStroke);
+    container.addEventListener('pointercancel', endStroke);
+
+    // Erase: click a stroke to remove it. A zone with no strokes goes away.
+    map.on('click', (event) => {
+      if (mode !== 'erase') {
+        return;
+      }
+      const point = toXY([event.latlng.lat, event.latlng.lng]);
+      let best = null;
+      zones.forEach((zone) => zone.strokes.forEach((s, index) => {
+        const distance = distanceToLine(point, s.map(toXY)) - zone.brush / 2;
+        if (distance <= 10 * metersPerPixel() && (!best || distance < best.distance)) {
+          best = { zone, index, distance };
+        }
+      }));
+      if (best) {
+        save();
+        best.zone.strokes.splice(best.index, 1);
+        if (best.zone.strokes.length === 0) {
+          zones = zones.filter((z) => z !== best.zone);
+          if (activeId === best.zone.id) {
+            activeId = null;
+          }
+        } else {
+          best.zone.edges = matchEdges(best.zone);
+        }
+        redraw();
+      }
+    });
+
+    // The paint width is in meters, so draw it again after each zoom.
+    map.on('zoomend', drawMap);
+
+    // Buttons
+
+    ui.undo.addEventListener('click', () => {
+      const last = history.pop();
+      if (last) {
+        restore(last);
+        redraw();
+      }
+    });
+
+    ui.clear.addEventListener('click', () => {
+      save();
+      zones = [];
+      activeId = null;
+      redraw();
+    });
+
+    function toGeoJSON() {
+      return {
+        type: 'FeatureCollection',
+        graphBuilt: graph.meta.built,
+        features: zones.map((zone) => ({
+          type: 'Feature',
+          geometry: { type: 'MultiLineString', coordinates: zone.strokes.map((s) => s.map(([lat, lon]) => [lon, lat])) },
+          properties: {
+            zone: zone.id,
+            name: zone.name,
+            level: zone.level,
+            multiplier: MULTIPLIERS[zone.level],
+            times: zone.times,
+            brush_m: zone.brush,
+            edges: zone.edges,
+          },
+        })),
+      };
+    }
+
+    function fromGeoJSON(collection) {
+      zones = collection.features.map((feature) => {
+        const p = feature.properties;
+        return {
+          id: p.zone,
+          level: p.level === 'medium' ? 'medium' : 'high',
+          name: p.name ?? '',
+          times: p.times ?? '',
+          brush: p.brush_m ?? 20,
+          strokes: feature.geometry.coordinates.map((s) => s.map(([lon, lat]) => [lat, lon])),
+          edges: [],
+        };
+      });
+      // Match again, because the graph can change after the file was saved.
+      zones.forEach((zone) => { zone.edges = matchEdges(zone); });
+      nextId = Math.max(0, ...zones.map((z) => z.id)) + 1;
+      activeId = null;
+    }
+
+    ui.download.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(toGeoJSON(), null, 2) + '\n'], { type: 'application/geo+json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'traffic-zones.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    ui.open.addEventListener('click', () => ui.file.click());
+    ui.file.addEventListener('change', async () => {
+      const file = ui.file.files[0];
+      if (!file) {
+        return;
+      }
+      try {
+        save();
+        fromGeoJSON(JSON.parse(await file.text()));
+        redraw();
+      } catch (error) {
+        history.pop();
+        statusEl.textContent = `Cannot open ${file.name}: ${error.message}`;
+      }
+      ui.file.value = '';
+    });
+
+    // Start with the drawing from the last visit, or else with data/traffic-zones.json.
+
+    let saved = null;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      // no storage
+    }
+    if (saved) {
+      restore(saved);
+      // Match again, because the graph can change between visits.
+      zones.forEach((zone) => { zone.edges = matchEdges(zone); });
+    } else {
+      try {
+        const response = await fetch('../data/traffic-zones.json');
+        if (response.ok) {
+          fromGeoJSON(await response.json());
+        }
+      } catch {
+        // no saved zones yet
+      }
+    }
+
+    setMode('paint');
+    redraw();
+  </script>
+</body>
+</html>
