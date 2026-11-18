@@ -3,10 +3,17 @@
 import { edgePoints } from './routing.js';
 
 // The bike facility types from scripts/lts.py (bike_type), from the best to
-// the worst. The colors are the same as --bike-* in css/style.css. Each type
-// has its own hue: blue for paths, teal for a buffered lane, purple for a
-// painted lane and orange for a sharrow. The light blue and the dark blue are
-// both paths. Green is for the bike racks only.
+// the worst. The colors are the same as --bike-* in css/style.css.
+//
+// Each color on the map has one meaning, and the map tiles are gray (see
+// .leaflet-tile-pane in css/style.css), so no tile color looks like ours:
+//   cool colors  bike facilities: blue for paths, teal for a buffered lane,
+//                purple for a painted lane. A sharrow is only a marking in
+//                the car lane, so it is a muted brown.
+//   red, orange  crowds at class change (CROWD_COLOR), only with a route
+//   gold         the route, and nothing else
+//   green        bike racks
+//   navy         the app itself: pins, the area outline, the step marker
 //
 // Colorblind mode: each type also gets a line pattern, so a rider can read
 // the type with no colors. The legend in css/style.css shows the same
@@ -16,7 +23,7 @@ const BIKE_STYLE = {
   shared_path: { color: '#2f9bf0', pattern: '14 7' }, // long dashes
   buffered: { color: '#00897b', pattern: '14 5 2 5' }, // dash and dot
   lane: { color: '#7b3fbf', pattern: '5 7' }, // short dashes
-  sharrow: { color: '#ef6c00', pattern: '1 9' }, // dots
+  sharrow: { color: '#8d6e63', pattern: '1 9' }, // dots
   none: { color: '#5f6670', pattern: null }, // solid
 };
 

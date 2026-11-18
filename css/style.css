@@ -13,8 +13,14 @@
   --bike-shared_path: #2f9bf0;
   --bike-buffered: #00897b;
   --bike-lane: #7b3fbf;
-  --bike-sharrow: #ef6c00;
+  --bike-sharrow: #8d6e63;
   --bike-none: #5f6670;
+}
+
+/* Gray map tiles: the OSM colors (red footways, orange roads, blue cycleways)
+   look like the colors of our layers. The streets and the names stay readable. */
+.leaflet-tile-pane {
+  filter: grayscale(0.9) contrast(0.92) brightness(1.04);
 }
 
 * {
