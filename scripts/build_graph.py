@@ -16,7 +16,7 @@ from datetime import date
 from pathlib import Path
 
 import osmnx as ox
-from shapely.geometry import shape
+from shapely.geometry import LineString, shape
 
 from lts import BIKE_TYPES, bike_type, lts
 
@@ -33,22 +33,59 @@ def load_area():
     return shape(feature.get("geometry", feature))
 
 # Tags that lts.py needs, in addition to the osmnx defaults.
-EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface",
+EXTRA_TAGS = ["cycleway", "cycleway:both", "cycleway:right", "cycleway:left", "bicycle", "surface", "footway",
               "cycleway:buffer", "cycleway:both:buffer", "cycleway:right:buffer", "cycleway:left:buffer"]
 
 # The osmnx "bike" network does not include footways. A second query adds the
 # walking paths, and bike_type() in lts.py marks them as shared_path. It skips
-# a path where bikes must not ride, and a sidewalk, because the street next
-# to a sidewalk is already in the graph. Steps are not footways, so they stay out.
+# a path where bikes must not ride. Steps are not footways, so they stay out.
 BIKE_FILTER = ox._overpass._get_network_filter("bike")
 FOOTWAYS_FOR_BIKES = ('["highway"~"^(footway|pedestrian)$"]["area"!~"yes"]'
-                      '["bicycle"!~"^(no|dismount)$"]["footway"!~"^sidewalk$"]')
+                      '["bicycle"!~"^(no|dismount)$"]')
+
+# Sidewalks stay only on the UCSD campus. There, many paths join the streets
+# through a short sidewalk, and the racks are next to the buildings. Off
+# campus, a sidewalk only copies the street next to it.
+CAMPUS_NAMES = {"University of California, San Diego", "UC San Diego School of Medicine"}
+CAMPUS_BUFFER_M = 30  # includes the sidewalks on the streets at the edge of campus
+
+
+def load_campus():
+    """Return the UCSD campus from OSM, with CAMPUS_BUFFER_M around it (x = longitude, y = latitude)."""
+    features = ox.features_from_polygon(load_area(), tags={"amenity": "university"})
+    shapes = features[features["name"].isin(CAMPUS_NAMES)].geometry
+    if shapes.empty:
+        raise SystemExit(f"No OSM area named {sorted(CAMPUS_NAMES)}")
+    campus, crs = ox.projection.project_geometry(shapes.union_all())
+    campus, _ = ox.projection.project_geometry(campus.buffer(CAMPUS_BUFFER_M), crs=crs, to_latlong=True)
+    return campus
+
+
+def is_sidewalk(data):
+    values = data.get("footway")
+    values = [values] if isinstance(values, str) else (values or [])
+    return bool(values) and all(value == "sidewalk" for value in values)
+
+
+def remove_sidewalks_off_campus(graph):
+    campus = load_campus()
+    off_campus = []
+    for u, v, k, d in graph.edges(keys=True, data=True):
+        if not is_sidewalk(d):
+            continue
+        line = d.get("geometry") or LineString([(graph.nodes[u]["x"], graph.nodes[u]["y"]),
+                                                (graph.nodes[v]["x"], graph.nodes[v]["y"])])
+        if not campus.intersects(line):
+            off_campus.append((u, v, k))
+    graph.remove_edges_from(off_campus)
+    print(f"Removed {len(off_campus)} sidewalk edges off campus")
 
 
 def download():
     ox.settings.useful_tags_way = list(dict.fromkeys(ox.settings.useful_tags_way + EXTRA_TAGS))
     ox.settings.cache_folder = str(ROOT / "cache")
     graph = ox.graph_from_polygon(load_area(), custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES])
+    remove_sidewalks_off_campus(graph)
     # Keep only the part where every node can reach every other node.
     # Otherwise A* can start in a piece that has no route out.
     return ox.truncate.largest_component(graph, strongly=True)
@@ -89,6 +126,7 @@ def to_json(graph):
             "area": "data/area.json",
             "bbox": {"west": west, "south": south, "east": east, "north": north},
             "stress": "LTS 1-4, simplified from Mekuria, Furth and Nixon (2012). See scripts/lts.py.",
+            "sidewalks": "UCSD campus only",
             "lengthUnit": "m",
             "nodeCount": len(nodes),
             "edgeCount": len(edges),
