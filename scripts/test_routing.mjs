@@ -64,5 +64,22 @@ for (const [from, to] of TRIPS) {
   }
 }
 
+// The slope: the climb from the beach to campus must cost time, and the ride down must not.
+const edges = [...graph.nodes.values()].flatMap((n) => n.out);
+check(edges.some((edge) => edge.climb > 0), 'the graph has no climb values');
+check(edges.every((edge) => (edge.climb ?? 0) >= 0), 'a climb value is less than 0');
+const up = findRoute(graph, node('La Jolla Shores beach'), node('Geisel Library'), { w: 0 });
+const down = findRoute(graph, node('Geisel Library'), node('La Jolla Shores beach'), { w: 0 });
+const upEbike = findRoute(graph, node('La Jolla Shores beach'), node('Geisel Library'), { w: 0, mode: 'ebike' });
+check(up.time > down.time + 300, `uphill ${up.time} s must be at least 5 min more than downhill ${down.time} s`);
+check(up.climb > 80, `the climb from the beach to Geisel is ${up.climb} m, about 110 m expected`);
+check(upEbike.climbTime < up.climbTime / 2, 'an e-bike must climb much faster than a bike');
+const upDijkstra = findRoute(graph, node('La Jolla Shores beach'), node('Geisel Library'), { w: 1, useHeuristic: false });
+check(Math.abs(findRoute(graph, node('La Jolla Shores beach'), node('Geisel Library'), { w: 1 }).cost - upDijkstra.cost) < 1e-6,
+  'with climb, the A* cost must equal the Dijkstra cost');
+console.log(`\nBeach → Geisel: ${(up.time / 60).toFixed(1)} min by bike (${Math.round(up.climb)} m climb, `
+  + `${(up.climbTime / 60).toFixed(1)} min), ${(upEbike.time / 60).toFixed(1)} min by e-bike. `
+  + `Geisel → beach: ${(down.time / 60).toFixed(1)} min by bike.`);
+
 console.log(failures ? `\n${failures} checks failed` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

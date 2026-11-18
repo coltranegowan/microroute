@@ -2,20 +2,38 @@
 //
 // cost = time × traffic × (1 + w × stress)
 //
-// time is the travel time in seconds, stress is the LTS level (1-4) and w is
+// time is the travel time in seconds, with the climb (see edgeTime), stress
+// is the LTS level (1-4) and w is
 // the safety weight. When w = 0, the route is the fastest route. traffic is
 // the crowd multiplier from js/traffic.js: more than 1 on a crowded path at a
 // class change, else 1.
 //
 // This file has no browser code except loadGraph(), so Node can test it.
 
-// Travel speed in m/s for each mode. These are first estimates. Week 7 adds
-// the slope penalty and checks these values.
+// Travel speed in m/s on flat ground for each mode.
 export const MODE_SPEED = {
   bike: 16 / 3.6, // 16 km/h
   ebike: 24 / 3.6, // 24 km/h
   scooter: 20 / 3.6, // 20 km/h
 };
+
+// The height in m that each mode climbs in one second, on top of the flat
+// time. Climb rate = power / (mass × 9.81). A rider at about 150 W with a bike
+// (85 kg) climbs 0.18 m/s. An e-bike motor adds about 250 W. A scooter motor
+// is about 350 W but slows down a lot on a hill. With these rates, the 110 m
+// from La Jolla Shores up to campus adds about 10 min on a bike.
+// A downhill part gives no time back, so the A* heuristic stays admissible.
+export const CLIMB_RATE = {
+  bike: 0.18,
+  ebike: 0.5,
+  scooter: 0.35,
+};
+
+// The time in seconds on one edge for a mode, with no traffic.
+// edge.climb is the uphill height in m, from scripts/elevation.py.
+export function edgeTime(edge, mode) {
+  return edge.length / MODE_SPEED[mode] + (edge.climb ?? 0) / CLIMB_RATE[mode];
+}
 
 const EARTH_RADIUS_M = 6371009; // the same radius that osmnx uses for `length`
 
@@ -98,7 +116,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
   const minFactor = useHeuristic ? (1 + w) / speed : 0;
   const heuristic = (node) => minFactor * distance(node.lat, node.lon, goal.lat, goal.lon);
 
-  const edgeCost = (edge) => (edge.length / speed) * traffic(edge) * (1 + w * edge.lts);
+  const edgeCost = (edge) => edgeTime(edge, mode) * traffic(edge) * (1 + w * edge.lts);
 
   const bestCost = new Map([[startId, 0]]);
   const cameBy = new Map(); // node id → the edge that reached it
@@ -112,7 +130,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
       continue; // an old entry for a node that was already done
     }
     if (id === goalId) {
-      return makeRoute(graph, cameBy, startId, goalId, bestCost.get(goalId), speed, traffic);
+      return makeRoute(graph, cameBy, startId, goalId, bestCost.get(goalId), mode, traffic);
     }
     closed.add(id);
 
@@ -131,7 +149,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
   return null;
 }
 
-function makeRoute(graph, cameBy, startId, goalId, cost, speed, traffic) {
+function makeRoute(graph, cameBy, startId, goalId, cost, mode, traffic) {
   const edges = [];
   for (let id = goalId; id !== startId; id = cameBy.get(id).from) {
     edges.push(cameBy.get(id));
@@ -157,15 +175,18 @@ function makeRoute(graph, cameBy, startId, goalId, cost, speed, traffic) {
   }
   const length = edges.reduce((sum, edge) => sum + edge.length, 0);
   // A crowd slows the rider, so the time includes the traffic multiplier.
-  const crowdDelay = edges.reduce((sum, edge) => sum + (edge.length / speed) * (traffic(edge) - 1), 0);
+  const crowdDelay = edges.reduce((sum, edge) => sum + edgeTime(edge, mode) * (traffic(edge) - 1), 0);
+  const climb = edges.reduce((sum, edge) => sum + (edge.climb ?? 0), 0);
 
   return {
     edges,
     points, // [[lat, lon], ...] for a Leaflet polyline
     segments, // [{ bike, points }, ...]: runs of edges with the same bike facility type
     length, // m
-    time: length / speed + crowdDelay, // s, with the crowds but no slope
+    time: length / MODE_SPEED[mode] + climb / CLIMB_RATE[mode] + crowdDelay, // s, with the climb and the crowds
     crowdDelay, // s
+    climb, // m uphill
+    climbTime: climb / CLIMB_RATE[mode], // s
     cost,
     lengthByLts,
   };

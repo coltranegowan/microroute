@@ -37,6 +37,7 @@ const ui = {
   leaveTime: document.getElementById('leave-time'),
   crowdHelp: document.getElementById('crowd-help'),
   crowdNote: document.getElementById('crowd-note'),
+  climbNote: document.getElementById('climb-note'),
   crowdKeys: document.querySelectorAll('.crowd-key'),
   summary: document.getElementById('summary'),
   distance: document.getElementById('distance'),
@@ -96,6 +97,7 @@ function clearRoute() {
   state.route = null;
   ui.summary.hidden = true;
   ui.crowdNote.hidden = true;
+  ui.climbNote.hidden = true;
   syncCrowds();
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
@@ -412,6 +414,12 @@ function updateRoute({ fit = false } = {}) {
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
   syncCrowds();
+  // Show the climb only when it adds about a minute or more.
+  if (route.climbTime >= 45) {
+    ui.climbNote.textContent = `Uphill: ${Math.round(route.climb * 3.28084 / 10) * 10} ft of climbing, `
+      + `which adds ${formatTime(route.climbTime)}.`;
+    ui.climbNote.hidden = false;
+  }
   if (route.crowdDelay >= 30) {
     ui.crowdNote.textContent = `The time includes ${formatTime(route.crowdDelay)} for class change crowds.`;
     ui.crowdNote.hidden = false;

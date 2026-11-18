@@ -46,12 +46,15 @@ python3 -m venv .venv
 node scripts/test_routing.mjs
 node scripts/test_search.mjs
 node scripts/test_directions.mjs
+node scripts/test_traffic.mjs
 .venv/bin/python scripts/build_graph.py
 .venv/bin/python scripts/build_places.py
 .venv/bin/python scripts/build_racks.py
 ```
 
-The build downloads the OSM streets (about 2–3 minutes) and writes `data/graph.json`.
+The build downloads the OSM streets (about 2–3 minutes) and writes `data/graph.json`. It also gets the ground elevation
+of each point from USGS 3DEP ([scripts/elevation.py](scripts/elevation.py)) and keeps it in `cache/elevations.json`, so only
+the first build waits for all the points.
 `build_places.py` writes `data/places.json` and `data/addresses.json`, the places and the street addresses for the From and To search boxes.
 `build_racks.py` writes `data/racks.json`, the bike racks and the locked bike enclosures. The points come from the
 [UC San Diego Campus Map](https://experience.arcgis.com/experience/c97d6e2efd7947d38738d5184b2debc7) (the Bicycle Racks and
@@ -68,6 +71,14 @@ routes and the search stay inside it.
 3. Click **Download area.json** and put the file in `data/`. Replace the old file.
 4. Run `scripts/build_graph.py`, `scripts/build_places.py` and `scripts/build_racks.py` again.
 5. Run the tests, then commit the four data files.
+
+## Hills
+
+Each edge has a `climb`: the uphill height in its direction, from the USGS elevation. The route time adds the
+climb at a climb rate for each mode (`CLIMB_RATE` in [js/routing.js](js/routing.js)): 0.18 m/s on a bike, 0.5 m/s on an
+e-bike and 0.35 m/s on a scooter. A downhill part gives no time back. The panel shows the climb when it adds about
+a minute or more. A bridge or a tunnel uses the height of its two ends only, because the elevation model is the
+ground under it.
 
 ## Class change crowds
 

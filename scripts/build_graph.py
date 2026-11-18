@@ -7,8 +7,8 @@ The script gets the OSM streets for the study area, calculates the LTS of
 each street segment (see lts.py) and writes the nodes and edges to JSON.
 Speed and time depend on the mode (bike, e-bike, scooter), so the browser
 calculates the time from the length. Each edge also gets its bike facility
-type (bike_type in lts.py) for the map. Slope (USGS) and the SANDAG bike
-network come later.
+type (bike_type in lts.py) for the map, and its climb from the USGS
+elevation (elevation.py). The SANDAG bike network is not used.
 """
 
 import json
@@ -18,6 +18,7 @@ from pathlib import Path
 import osmnx as ox
 from shapely.geometry import LineString, shape
 
+from elevation import climb, elevations
 from lts import BIKE_TYPES, bike_type, lts
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -95,9 +96,32 @@ def point(lon, lat):
     return [round(lat, 6), round(lon, 6)]
 
 
+def edge_line(graph, u, v, d):
+    """The (lon, lat) points of an edge, in the direction from u to v."""
+    start = (graph.nodes[u]["x"], graph.nodes[u]["y"])
+    end = (graph.nodes[v]["x"], graph.nodes[v]["y"])
+    # The elevation model is the ground, so a point in the middle of a bridge
+    # would be at the bottom of the canyon. A bridge or a tunnel uses its ends only.
+    if "geometry" not in d or d.get("bridge") not in (None, "no") or d.get("tunnel") not in (None, "no"):
+        return [start, end]
+    coords = list(d["geometry"].coords)
+    first, last = coords[0], coords[-1]
+    if (first[0] - start[0]) ** 2 + (first[1] - start[1]) ** 2 > (last[0] - start[0]) ** 2 + (last[1] - start[1]) ** 2:
+        coords.reverse()
+    return coords
+
+
 def to_json(graph):
     west, south, east, north = load_area().bounds
-    nodes = {str(n): point(d["x"], d["y"]) for n, d in graph.nodes(data=True)}
+    lines = {(u, v, k): edge_line(graph, u, v, d) for u, v, k, d in graph.edges(keys=True, data=True)}
+    points = [(d["x"], d["y"]) for _, d in graph.nodes(data=True)] + [p for line in lines.values() for p in line]
+    height = elevations(points)
+    nodes = {}
+    for n, d in graph.nodes(data=True):
+        nodes[str(n)] = point(d["x"], d["y"])
+        h = height[(d["x"], d["y"])]
+        if h is not None:
+            nodes[str(n)].append(round(h, 1))
 
     edges = []
     for u, v, k, d in graph.edges(keys=True, data=True):
@@ -109,6 +133,10 @@ def to_json(graph):
             "lts": lts(d),
             "bike": bike_type(d),
         }
+        # The uphill height in the direction of the edge. The browser adds time for it.
+        up = climb([height[p] for p in lines[(u, v, k)]])
+        if up >= 0.1:
+            edge["climb"] = round(up, 1)
         name = d.get("name")
         if name:
             edge["name"] = name if isinstance(name, str) else " / ".join(name)
@@ -127,6 +155,7 @@ def to_json(graph):
             "bbox": {"west": west, "south": south, "east": east, "north": north},
             "stress": "LTS 1-4, simplified from Mekuria, Furth and Nixon (2012). See scripts/lts.py.",
             "sidewalks": "UCSD campus only",
+            "elevation": "USGS 3DEP (The National Map). Nodes are [lat, lon, m]. climb is the uphill m of an edge.",
             "lengthUnit": "m",
             "nodeCount": len(nodes),
             "edgeCount": len(edges),
