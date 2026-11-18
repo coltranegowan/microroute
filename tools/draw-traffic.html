@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Draw Traffic Zones</title>
+  <title>Team Map Notes</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="../css/style.css">
@@ -172,19 +172,80 @@
     #file {
       display: none;
     }
+
+    .tabs {
+      margin-bottom: 10px;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    input.text {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 6px 8px;
+      font: inherit;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .wide-button {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .open-row {
+      margin-top: 8px;
+    }
+
+    .zone.rack {
+      border-left-color: var(--rack);
+    }
+
+    .rack-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .team-rack {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #ffffff;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      font: 700 12px/20px system-ui, sans-serif;
+      text-align: center;
+      color: #ffffff;
+      background: var(--rack);
+    }
+
+    .team-rack.enclosure {
+      border-radius: 50%;
+    }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <h1>Draw traffic zones</h1>
-    <p>Paint over the streets that are busy at class change</p>
+    <h1>Traffic zones and bike racks</h1>
+    <p>Paint the crowded paths, or add the bike racks that you see</p>
   </header>
 
   <div class="map-wrap">
-    <main id="map" aria-label="Map for drawing the traffic zones"></main>
+    <main id="map" aria-label="Map for the traffic zones and the bike racks"></main>
 
     <aside class="panel" aria-label="Drawing controls">
+      <div class="segmented two tabs" role="group" aria-label="What to add">
+        <button id="tab-zones" type="button" aria-pressed="true">Traffic zones</button>
+        <button id="tab-racks" type="button" aria-pressed="false">Bike racks</button>
+      </div>
+
       <p id="status" class="status" role="status" aria-live="polite">Loading the streets…</p>
+
+      <section id="zones-tab">
       <ol>
         <li>Pick <b>High</b> or <b>Medium</b>.</li>
         <li>Click <b>Paint</b>. Then press and drag over the busy streets.
@@ -192,8 +253,7 @@
         <li>Click <b>Move map</b> to pan. The mouse wheel zooms in all modes.</li>
         <li>Each new stroke is a new zone. Click <b>Paint more</b> on a zone to add strokes to it.</li>
         <li>The app makes all zones busy in the 10 minutes between classes.</li>
-        <li>Only the streets that change color count. The routes do not use a footway that
-          OSM does not mark as open to bikes, so paint on it has no effect.</li>
+        <li>Only the streets that change color count. Paint on a path that is not in the street graph has no effect.</li>
       </ol>
 
       <div class="segmented two" role="group" aria-label="Traffic level for a new zone">
@@ -219,12 +279,33 @@
       <div class="buttons">
         <button id="undo" type="button" class="secondary">Undo</button>
         <button id="clear" type="button" class="secondary">Clear all</button>
-        <button id="open" type="button" class="secondary wide">Open a saved file</button>
         <button id="download" type="button" class="wide">Download traffic-zones.json</button>
       </div>
-      <input id="file" type="file" accept=".json,application/json">
-      <p class="help">The browser keeps your drawing for the next visit.
-        Send the file to Claude, or put it in the <code>data/</code> folder of the project.</p>
+      </section>
+
+      <section id="racks-tab" hidden>
+        <label class="field-label" for="team-name">Your name</label>
+        <input id="team-name" class="text" type="text" autocomplete="name" placeholder="So the team knows who added a rack">
+        <ol>
+          <li>Tap the map where a rack is. Zoom in close first.</li>
+          <li>Or stand next to the rack and click <b>Add at my location</b>.</li>
+          <li>Drag a green number to move a rack. Then fill in the details.</li>
+          <li>The gray dots are the racks from the UCSD campus map. The app has them already.</li>
+        </ol>
+        <button id="locate" type="button" class="wide-button">Add at my location</button>
+        <ul id="racks" class="zones" aria-label="Bike racks that the team added"></ul>
+        <div class="buttons">
+          <button id="download-racks" type="button" class="wide">Download team-racks.json</button>
+        </div>
+      </section>
+
+      <div class="buttons open-row">
+        <button id="open" type="button" class="secondary wide">Add a saved file</button>
+      </div>
+      <input id="file" type="file" accept=".json,application/json" multiple>
+      <p class="help">The browser keeps your work for the next visit. <b>Add a saved file</b> adds a
+        teammate's file to your map and keeps what you have. Send the files to Claude, or put them in the
+        <code>data/</code> folder of the project.</p>
     </aside>
   </div>
 
@@ -239,7 +320,8 @@
     const statusEl = document.getElementById('status');
     const ui = Object.fromEntries(
       ['level-high', 'level-medium', 'mode-move', 'mode-paint', 'mode-erase', 'target', 'brush', 'brush-value',
-        'zones', 'undo', 'clear', 'open', 'download', 'file'].map((id) => [id, document.getElementById(id)]),
+        'zones', 'undo', 'clear', 'open', 'download', 'file', 'tab-zones', 'tab-racks', 'zones-tab', 'racks-tab',
+        'team-name', 'locate', 'racks', 'download-racks'].map((id) => [id, document.getElementById(id)]),
     );
     const wrap = document.querySelector('.map-wrap');
 
@@ -271,6 +353,7 @@
     let level = 'high';
     let mode = 'paint';
     let activeId = null; // the zone that gets the next stroke, or null for a new zone
+    let tab = 'zones'; // 'zones' or 'racks'
     const history = [];
 
     function snapshot() {
@@ -358,8 +441,8 @@
       ui['level-high'].setAttribute('aria-pressed', level === 'high');
       ui['level-medium'].setAttribute('aria-pressed', level === 'medium');
       ['move', 'paint', 'erase'].forEach((m) => ui[`mode-${m}`].setAttribute('aria-pressed', mode === m));
-      wrap.classList.toggle('paint', mode === 'paint');
-      wrap.classList.toggle('erase', mode === 'erase');
+      wrap.classList.toggle('paint', tab === 'zones' && mode === 'paint');
+      wrap.classList.toggle('erase', tab === 'zones' && mode === 'erase');
 
       ui.target.innerHTML = activeId === null
         ? `The next stroke makes a new <b>${level}</b> zone.`
@@ -370,7 +453,8 @@
       });
 
       const segments = zones.reduce((sum, zone) => sum + zone.edges.length, 0);
-      statusEl.textContent = zones.length === 0
+      // The rack tab writes its own status.
+      statusEl.textContent = tab !== 'zones' ? statusEl.textContent : zones.length === 0
         ? 'Paint over a busy street to make the first zone.'
         : `${zones.length} zones, ${segments} street segments.`;
       ui.undo.disabled = history.length === 0;
@@ -425,7 +509,7 @@
 
     function setMode(next) {
       mode = next;
-      if (mode === 'move') {
+      if (mode === 'move' || tab === 'racks') {
         map.dragging.enable();
       } else {
         map.dragging.disable();
@@ -451,7 +535,7 @@
     let lastPoint = null;
 
     container.addEventListener('pointerdown', (event) => {
-      if (mode !== 'paint' || event.button !== 0 || event.target.closest('.leaflet-control')) {
+      if (tab !== 'zones' || mode !== 'paint' || event.button !== 0 || event.target.closest('.leaflet-control, .leaflet-marker-icon')) {
         return;
       }
       container.setPointerCapture(event.pointerId);
@@ -500,7 +584,7 @@
 
     // Erase: click a stroke to remove it. A zone with no strokes goes away.
     map.on('click', (event) => {
-      if (mode !== 'erase') {
+      if (tab !== 'zones' || mode !== 'erase') {
         return;
       }
       const point = toXY([event.latlng.lat, event.latlng.lng]);
@@ -594,22 +678,298 @@
       URL.revokeObjectURL(link.href);
     });
 
+    // Add the zones of a teammate's file to the drawing. The zones that are
+    // already in the drawing stay. A zone with the same strokes as one in the
+    // drawing is not added again.
+    function addZones(collection) {
+      const have = new Set(zones.map((zone) => JSON.stringify(zone.strokes)));
+      let added = 0;
+      for (const feature of collection.features ?? []) {
+        if (feature.geometry?.type !== 'MultiLineString') {
+          continue;
+        }
+        const p = feature.properties ?? {};
+        const strokes = feature.geometry.coordinates.map((s) => s.map(([lon, lat]) => [lat, lon]));
+        if (have.has(JSON.stringify(strokes))) {
+          continue;
+        }
+        const zone = {
+          id: nextId,
+          level: p.level === 'medium' ? 'medium' : 'high',
+          name: p.name ?? '',
+          notes: p.notes ?? p.times ?? '',
+          brush: p.brush_m ?? 20,
+          strokes,
+          edges: [],
+        };
+        zone.edges = matchEdges(zone);
+        nextId += 1;
+        zones.push(zone);
+        added += 1;
+      }
+      return added;
+    }
+
     ui.open.addEventListener('click', () => ui.file.click());
     ui.file.addEventListener('change', async () => {
-      const file = ui.file.files[0];
-      if (!file) {
-        return;
+      const messages = [];
+      for (const file of ui.file.files) {
+        try {
+          const data = JSON.parse(await file.text());
+          if (Array.isArray(data)) {
+            messages.push(`${file.name}: ${addRacks(data)} new racks`);
+          } else {
+            save();
+            messages.push(`${file.name}: ${addZones(data)} new zones`);
+          }
+        } catch (error) {
+          messages.push(`Cannot open ${file.name}: ${error.message}`);
+        }
       }
-      try {
-        save();
-        fromGeoJSON(JSON.parse(await file.text()));
-        redraw();
-      } catch (error) {
-        history.pop();
-        statusEl.textContent = `Cannot open ${file.name}: ${error.message}`;
-      }
+      redraw();
+      drawRacks();
+      statusEl.textContent = messages.join('. ') + '.';
       ui.file.value = '';
     });
+
+    // Bike racks that the team adds. They have their own storage key, so they
+    // never change the traffic zones.
+
+    const RACKS_KEY = 'microroute.teamRacks';
+    const NAME_KEY = 'microroute.teamName';
+    let racks = []; // [{ id, lat, lon, kind, near, spaces, notes, by, date }]
+    let selectedRack = null;
+    const teamRackLayer = L.layerGroup();
+    const officialRackLayer = L.layerGroup();
+
+    function persistRacks() {
+      try {
+        localStorage.setItem(RACKS_KEY, JSON.stringify(racks));
+      } catch {
+        // The racks then last only until the page closes.
+      }
+    }
+
+    // Add racks from a file or from data/team-racks.json. A rack with the same id is not added again.
+    function addRacks(list) {
+      const have = new Set(racks.map((rack) => rack.id));
+      let added = 0;
+      for (const rack of list) {
+        if (typeof rack.lat !== 'number' || typeof rack.lon !== 'number') {
+          continue;
+        }
+        const id = rack.id ?? `${rack.lat.toFixed(6)},${rack.lon.toFixed(6)}`;
+        if (have.has(id)) {
+          continue;
+        }
+        have.add(id);
+        racks.push({
+          id,
+          lat: rack.lat,
+          lon: rack.lon,
+          kind: rack.kind === 'enclosure' ? 'enclosure' : 'rack',
+          near: rack.near ?? '',
+          spaces: rack.spaces ?? null,
+          notes: rack.notes ?? '',
+          by: rack.by ?? '',
+          date: rack.date ?? '',
+        });
+        added += 1;
+      }
+      persistRacks();
+      return added;
+    }
+
+    function newRack(lat, lon) {
+      const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      racks.push({
+        id, lat, lon, kind: 'rack', near: '', spaces: null, notes: '',
+        by: ui['team-name'].value.trim(), date: new Date().toISOString().slice(0, 10),
+      });
+      selectedRack = id;
+      persistRacks();
+      drawRacks();
+      ui.racks.querySelector(`[data-id="${id}"] input[data-field="near"]`)?.focus();
+    }
+
+    function drawRacks() {
+      teamRackLayer.clearLayers();
+      racks.forEach((rack, i) => {
+        const marker = L.marker([rack.lat, rack.lon], {
+          draggable: true,
+          title: `Team rack ${i + 1}. Drag to move.`,
+          icon: L.divIcon({ className: '', html: `<div class="team-rack ${rack.kind}">${i + 1}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] }),
+        }).addTo(teamRackLayer);
+        marker.on('dragend', () => {
+          ({ lat: rack.lat, lng: rack.lon } = marker.getLatLng());
+          persistRacks();
+        });
+        marker.on('click', () => {
+          selectedRack = rack.id;
+          drawRacks();
+          ui.racks.querySelector(`[data-id="${rack.id}"]`)?.scrollIntoView({ block: 'nearest' });
+        });
+      });
+
+      ui.racks.innerHTML = racks.map((rack, i) => `
+        <li class="zone rack${rack.id === selectedRack ? ' active' : ''}" data-id="${rack.id}">
+          <div class="zone-head">
+            <span>Rack ${i + 1}${rack.by ? ` · ${escapeHtml(rack.by)}` : ''}</span>
+            <select data-field="kind" aria-label="Kind of rack ${i + 1}">
+              <option value="rack"${rack.kind === 'rack' ? ' selected' : ''}>Rack</option>
+              <option value="enclosure"${rack.kind === 'enclosure' ? ' selected' : ''}>Locked enclosure</option>
+            </select>
+          </div>
+          <input data-field="near" placeholder="Near which building?" value="${escapeHtml(rack.near)}">
+          <div class="rack-row">
+            <input data-field="spaces" type="number" min="1" inputmode="numeric" placeholder="Bike spaces" value="${rack.spaces ?? ''}">
+            <input data-field="notes" placeholder="Notes" value="${escapeHtml(rack.notes)}">
+          </div>
+          <div class="zone-buttons">
+            <button type="button" data-action="show">Show on map</button>
+            <button type="button" data-action="delete">Delete</button>
+          </div>
+        </li>`).join('');
+      ui['download-racks'].disabled = racks.length === 0;
+      if (tab === 'racks') {
+        statusEl.textContent = racks.length === 0
+          ? 'Tap the map where a rack is to add it.'
+          : `${racks.length} team racks. Tap the map to add another.`;
+      }
+    }
+
+    ui.racks.addEventListener('input', (event) => {
+      const rack = racks.find((r) => r.id === event.target.closest('.rack').dataset.id);
+      const field = event.target.dataset.field;
+      if (field === 'near' || field === 'notes') {
+        rack[field] = event.target.value; // no redraw, so the text box keeps the focus
+      } else if (field === 'spaces') {
+        rack.spaces = event.target.value ? Number(event.target.value) : null;
+      }
+      persistRacks();
+    });
+
+    ui.racks.addEventListener('change', (event) => {
+      if (event.target.dataset.field === 'kind') {
+        racks.find((r) => r.id === event.target.closest('.rack').dataset.id).kind = event.target.value;
+        persistRacks();
+        drawRacks();
+      }
+    });
+
+    ui.racks.addEventListener('click', (event) => {
+      const action = event.target.dataset.action;
+      if (!action) {
+        return;
+      }
+      const rack = racks.find((r) => r.id === event.target.closest('.rack').dataset.id);
+      if (action === 'show') {
+        selectedRack = rack.id;
+        map.setView([rack.lat, rack.lon], Math.max(map.getZoom(), 18));
+        drawRacks();
+      } else if (action === 'delete' && confirm(`Delete rack ${racks.indexOf(rack) + 1}?`)) {
+        racks = racks.filter((r) => r !== rack);
+        persistRacks();
+        drawRacks();
+      }
+    });
+
+    // In the rack tab, a tap on the map adds a rack. Leaflet sends no click after a drag.
+    map.on('click', (event) => {
+      if (tab === 'racks') {
+        newRack(event.latlng.lat, event.latlng.lng);
+      }
+    });
+
+    ui.locate.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        statusEl.textContent = 'This browser cannot find your location. Tap the map instead.';
+        return;
+      }
+      statusEl.textContent = 'Finding your location…';
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          map.setView([coords.latitude, coords.longitude], 19);
+          newRack(coords.latitude, coords.longitude);
+          if (coords.accuracy > 15) {
+            statusEl.textContent = `Your location is accurate to about ${Math.round(coords.accuracy)} m. Drag the rack to the correct place.`;
+          }
+        },
+        (error) => {
+          statusEl.textContent = `No location: ${error.message}. Tap the map instead.`;
+        },
+        { enableHighAccuracy: true, timeout: 15000 },
+      );
+    });
+
+    try {
+      ui['team-name'].value = localStorage.getItem(NAME_KEY) ?? '';
+    } catch {
+      // no storage
+    }
+    ui['team-name'].addEventListener('input', () => {
+      try {
+        localStorage.setItem(NAME_KEY, ui['team-name'].value.trim());
+      } catch {
+        // no storage
+      }
+    });
+
+    ui['download-racks'].addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(racks, null, 2) + '\n'], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'team-racks.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    function setTab(next) {
+      tab = next;
+      ui['tab-zones'].setAttribute('aria-pressed', tab === 'zones');
+      ui['tab-racks'].setAttribute('aria-pressed', tab === 'racks');
+      ui['zones-tab'].hidden = tab !== 'zones';
+      ui['racks-tab'].hidden = tab !== 'racks';
+      if (tab === 'racks') {
+        teamRackLayer.addTo(map);
+        officialRackLayer.addTo(map);
+      } else {
+        teamRackLayer.remove();
+        officialRackLayer.remove();
+      }
+      setMode(mode); // the map drags in the rack tab
+      drawRacks();
+    }
+
+    ui['tab-zones'].addEventListener('click', () => setTab('zones'));
+    ui['tab-racks'].addEventListener('click', () => setTab('racks'));
+
+    // The racks from the UCSD campus map, so the team does not add them again.
+    try {
+      const official = await (await fetch('../data/racks.json')).json();
+      official.forEach((rack) => {
+        L.circleMarker([rack.lat, rack.lon], { radius: 5, color: '#ffffff', weight: 1.5, fillColor: '#5f6670', fillOpacity: 0.9 })
+          .bindTooltip(rack.kind === 'enclosure' ? 'Locked enclosure (UCSD map)' : `Rack (UCSD map)${rack.near ? ` near ${rack.near}` : ''}`)
+          .addTo(officialRackLayer);
+      });
+    } catch {
+      // The tool works with no official racks.
+    }
+
+    // The team racks from the last visit, and the ones that are already in the project.
+    try {
+      addRacks(JSON.parse(localStorage.getItem(RACKS_KEY) ?? '[]'));
+    } catch {
+      // no storage
+    }
+    try {
+      const response = await fetch('../data/team-racks.json');
+      if (response.ok) {
+        addRacks(await response.json());
+      }
+    } catch {
+      // no team racks yet
+    }
 
     // Start with the drawing from the last visit, or else with data/traffic-zones.json.
 
@@ -637,6 +997,7 @@
 
     setMode('paint');
     redraw();
+    drawRacks();
   </script>
 </body>
 </html>

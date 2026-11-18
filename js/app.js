@@ -524,7 +524,9 @@ try {
 
 // The routes work with no racks, so a rack error shows only in the console.
 try {
-  state.racks = createRackLayer(map, await loadRacks());
+  // The team racks come from tools/draw-traffic.html. The app works without them.
+  const [ucsd, team] = await Promise.all([loadRacks(), loadRacks('data/team-racks.json').catch(() => [])]);
+  state.racks = createRackLayer(map, [...ucsd, ...team.map((rack) => ({ ...rack, team: true }))]);
   updateRacks();
   if (state.route) {
     showNearestRack();

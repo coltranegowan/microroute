@@ -87,6 +87,21 @@ To change the zones:
 
 Paint on a footway that is not in the street graph has no effect. The graph has a footway only if OSM marks it as open to bikes.
 
+## Add bike racks from the team
+
+The same page, https://coltranegowan.github.io/microroute/tools/draw-traffic.html, has a **Bike racks** tab.
+It works on a phone, so a teammate can add racks on campus.
+
+1. Type your name. Then tap the map where a rack is, or click **Add at my location** next to the rack.
+2. Pick **Rack** or **Locked enclosure**, and type the building, the number of bike spaces and notes.
+3. Click **Download team-racks.json** and send the file to the team.
+4. To combine the files, open the page, click **Add a saved file** and pick all the files.
+   Then download `team-racks.json` again and put it in `data/`.
+
+The gray dots are the racks from the UCSD campus map ([data/racks.json](data/racks.json)), so the team does not add them
+again. The app shows the team racks with the UCSD racks, and the popup says who added them.
+**Add a saved file** adds to what is on the page. It never removes your traffic zones or racks.
+
 ## Add a UCSD building code
 
 OSM has codes for only a few campus buildings. To add a code, add a line to

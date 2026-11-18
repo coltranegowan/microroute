@@ -230,10 +230,21 @@ function rackPopup(rack) {
   if (rack.near) {
     box.append(document.createElement('br'), `Near ${rack.near}`);
   }
+  if (rack.spaces) {
+    box.append(document.createElement('br'), `About ${rack.spaces} bike spaces`);
+  }
+  if (rack.notes) {
+    box.append(document.createElement('br'), rack.notes);
+  }
+  if (rack.team) {
+    const source = document.createElement('small');
+    source.textContent = `Added by the team${rack.by ? ` (${rack.by})` : ''}${rack.date ? `, ${rack.date}` : ''}`;
+    box.append(document.createElement('br'), source);
+  }
   return box;
 }
 
-// The bike racks and enclosures from data/racks.json.
+// The bike racks and enclosures from data/racks.json and data/team-racks.json.
 //
 // The racks show at zoom RACK_MIN_ZOOM and closer. After a route, the racks
 // near the end show at full size at every zoom, and the nearest rack gets a
