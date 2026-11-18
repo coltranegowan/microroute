@@ -325,9 +325,9 @@ export function createStepMarker(latlng) {
 
 // The crowded paths of the traffic zones (js/traffic.js), as soft bands under
 // the bike lanes. The app shows them only with a route at a class change.
-// High is red and medium is yellow. Yellow is lighter than red, so the levels
+// High is red and medium is orange. Orange is lighter than red, so the levels
 // also read with no colors.
-const CROWD_COLOR = { high: '#e53935', medium: '#fdd835' };
+const CROWD_COLOR = { high: '#e53935', medium: '#ff9800' };
 
 // Zoomed out, the bands are thin and faint, so they do not cover the map.
 function crowdStyle(zoom) {

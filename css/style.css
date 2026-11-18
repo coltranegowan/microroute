@@ -249,7 +249,7 @@ select,
 }
 
 .swatch.crowd.high { background: #e53935; }
-.swatch.crowd.medium { background: #fdd835; }
+.swatch.crowd.medium { background: #ff9800; }
 
 .leave-row {
   display: flex;
