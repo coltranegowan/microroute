@@ -964,7 +964,7 @@
       // no storage
     }
     try {
-      const response = await fetch('../data/team-racks.json');
+      const response = await fetch('../data/team-racks.json', { cache: 'no-cache' });
       if (response.ok) {
         addRacks(await response.json());
       }
@@ -972,7 +972,10 @@
       // no team racks yet
     }
 
-    // Start with the drawing from the last visit, or else with data/traffic-zones.json.
+    // Start with the drawing from the last visit. Then add the zones in
+    // data/traffic-zones.json that the drawing does not have yet, so each
+    // teammate gets the zones that the project has now. No zone in the
+    // drawing is removed or changed.
 
     let saved = null;
     try {
@@ -985,15 +988,20 @@
       zones.forEach((zone) => { zone.notes ??= zone.times ?? ''; });
       // Match again, because the graph can change between visits.
       zones.forEach((zone) => { zone.edges = matchEdges(zone); });
-    } else {
-      try {
-        const response = await fetch('../data/traffic-zones.json');
-        if (response.ok) {
-          fromGeoJSON(await response.json());
+    }
+    try {
+      // no-cache: get the newest file, not a copy that the browser kept.
+      const response = await fetch('../data/traffic-zones.json', { cache: 'no-cache' });
+      if (response.ok) {
+        const data = await response.json();
+        if (saved) {
+          addZones(data);
+        } else {
+          fromGeoJSON(data);
         }
-      } catch {
-        // no saved zones yet
       }
+    } catch {
+      // no project zones yet
     }
 
     setMode('paint');
