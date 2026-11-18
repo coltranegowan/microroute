@@ -168,6 +168,17 @@ export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) 
 // Returns an object:
 //   show(on)                 put the lines on the map, or remove them
 //   setColorblind(on)        add or remove the line patterns
+// The width of a bike lane line at a zoom. Zoomed out, the lines are thin, so
+// they do not cover the streets and the names.
+function bikeWeight(zoom) {
+  if (zoom <= 13) return 1.5;
+  if (zoom <= 14) return 2;
+  if (zoom <= 15) return 2.5;
+  if (zoom <= 16) return 3;
+  if (zoom <= 17) return 4;
+  return 5;
+}
+
 export function createBikeLayer(map, graph, { colorblind = false } = {}) {
   // A pane under the route and the area mask (the overlay pane is 400).
   if (!map.getPane('bikeNetwork')) {
@@ -190,7 +201,7 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
       const line = L.polyline(edgePoints(graph, edge), {
         renderer,
         color: BIKE_STYLE[edge.bike].color,
-        weight: 4,
+        weight: bikeWeight(map.getZoom()),
         opacity: 0.55,
         dashArray: colorblind ? BIKE_STYLE[edge.bike].pattern : null,
         interactive: false,
@@ -200,10 +211,21 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
     }
   }
 
+  const resize = () => layer.eachLayer((line) => line.setStyle({ weight: bikeWeight(map.getZoom()) }));
+  map.on('zoomend', () => {
+    if (map.hasLayer(layer)) {
+      resize();
+    }
+  });
+
   return {
     show(on) {
-      if (on) layer.addTo(map);
-      else layer.remove();
+      if (on) {
+        resize(); // the zoom can change while the layer is off
+        layer.addTo(map);
+      } else {
+        layer.remove();
+      }
     },
 
     setColorblind(on) {
