@@ -11,8 +11,8 @@ import { edgePoints } from './routing.js';
 //                purple for a painted lane. A sharrow is only a marking in
 //                the car lane, so it is a muted brown.
 //   red, orange  crowds at class change (CROWD_COLOR), on the route outline only
-//   gold         the route, and nothing else
-//   green        bike racks
+//   green        the route outline, and nothing else
+//   gold         bike racks (with a navy bike)
 //   navy         the app itself: pins, the area outline, the step marker
 //
 // Colorblind mode: each type also gets a line pattern, so a rider can read
@@ -115,13 +115,13 @@ export function createPin(latlng, kind) {
 // facility type. A white line under the colors keeps the route clear on the
 // map tiles. colorblind: true also gives each type its line pattern.
 // crowds: [{ level, points }], the crowded parts of the route. Their outline
-// is red or orange, not gold.
+// is red or orange, not green.
 export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) {
   const layer = L.layerGroup();
-  // A UCSD gold halo makes the route stand out from the bike lane layer.
-  // No other line on the map is gold.
+  // A green outline makes the route stand out from the bike lane layer.
+  // Nothing else on the map is green.
   L.polyline(route.points, {
-    color: '#ffcd00',
+    color: '#43a047',
     weight: colorblind ? 15 : 13,
     opacity: 1,
     lineCap: 'round',
@@ -133,7 +133,7 @@ export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) 
       color: CROWD_COLOR[level],
       weight: colorblind ? 15 : 13,
       opacity: 1,
-      dashArray: colorblind ? '10 6' : null, // red and gold stripes, so the crowd shows with no colors
+      dashArray: colorblind ? '10 6' : null, // red and green stripes, so the crowd shows with no colors
       lineCap: 'butt',
       lineJoin: 'round',
       interactive: false,
@@ -234,7 +234,7 @@ export function fillRackLegend() {
   }
 }
 
-// size: 'small' or 'near'. nearest: true adds a gold ring.
+// size: 'small' or 'near'. nearest: true adds a navy ring.
 function rackIcon(rack, size = 'small', nearest = false) {
   const px = size === 'near' ? 28 : 20;
   const badge = rack.kind === 'enclosure' ? `<span class="rack-lock">${LOCK_SVG}</span>` : '';
@@ -275,7 +275,7 @@ function rackPopup(rack) {
 //
 // The racks show at zoom RACK_MIN_ZOOM and closer. After a route, the racks
 // near the end show at full size at every zoom, and the nearest rack gets a
-// gold ring.
+// navy ring.
 //
 // Returns an object:
 //   markers            one Leaflet marker for each rack, with the rack in marker.rack
@@ -342,7 +342,7 @@ export function createStepMarker(latlng) {
     radius: 10,
     color: '#182b49',
     weight: 3,
-    fillColor: '#ffcd00',
+    fillColor: '#ffffff',
     fillOpacity: 0.9,
     interactive: false,
   });
