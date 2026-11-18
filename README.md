@@ -54,7 +54,8 @@ The build downloads the OSM streets (about 2–3 minutes) and writes `data/graph
 `build_places.py` writes `data/places.json` and `data/addresses.json`, the places and the street addresses for the From and To search boxes.
 `build_racks.py` writes `data/racks.json`, the bike racks and the locked bike enclosures. The points come from the
 [UC San Diego Campus Map](https://experience.arcgis.com/experience/c97d6e2efd7947d38738d5184b2debc7) (the Bicycle Racks and
-Bicycle Enclosures layers). Run it again when UCSD changes the racks.
+Bicycle Enclosures layers) and from the OpenStreetMap bike parking. The script skips an OSM point that is within 20 m of
+a UCSD point, because it is probably the same rack. Run it again when UCSD or OSM changes the racks.
 
 ## Change the map area
 
@@ -98,8 +99,8 @@ It works on a phone, so a teammate can add racks on campus.
 4. To combine the files, open the page, click **Add a saved file** and pick all the files.
    Then download `team-racks.json` again and put it in `data/`.
 
-The gray dots are the racks from the UCSD campus map ([data/racks.json](data/racks.json)), so the team does not add them
-again. The app shows the team racks with the UCSD racks, and the popup says who added them.
+The gray dots are the racks from the UCSD campus map and OpenStreetMap ([data/racks.json](data/racks.json)), so the team
+does not add them again. The app shows the team racks with the UCSD racks, and the popup says who added them.
 **Add a saved file** adds to what is on the page. It never removes your traffic zones or racks.
 
 ## Add a UCSD building code

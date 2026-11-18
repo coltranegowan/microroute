@@ -290,7 +290,7 @@
           <li>Tap the map where a rack is. Zoom in close first.</li>
           <li>Or stand next to the rack and click <b>Add at my location</b>.</li>
           <li>Drag a green number to move a rack. Then fill in the details.</li>
-          <li>The gray dots are the racks from the UCSD campus map. The app has them already.</li>
+          <li>The gray dots are the racks from the UCSD campus map and OpenStreetMap. The app has them already.</li>
         </ol>
         <button id="locate" type="button" class="wide-button">Add at my location</button>
         <ul id="racks" class="zones" aria-label="Bike racks that the team added"></ul>
@@ -944,12 +944,13 @@
     ui['tab-zones'].addEventListener('click', () => setTab('zones'));
     ui['tab-racks'].addEventListener('click', () => setTab('racks'));
 
-    // The racks from the UCSD campus map, so the team does not add them again.
+    // The racks from the UCSD campus map and OpenStreetMap, so the team does not add them again.
     try {
       const official = await (await fetch('../data/racks.json')).json();
       official.forEach((rack) => {
         L.circleMarker([rack.lat, rack.lon], { radius: 5, color: '#ffffff', weight: 1.5, fillColor: '#5f6670', fillOpacity: 0.9 })
-          .bindTooltip(rack.kind === 'enclosure' ? 'Locked enclosure (UCSD map)' : `Rack (UCSD map)${rack.near ? ` near ${rack.near}` : ''}`)
+          .bindTooltip(`${rack.kind === 'enclosure' ? 'Locked enclosure' : 'Rack'}${rack.near ? ` near ${rack.near}` : ''}`
+            + ` (${rack.source === 'osm' ? 'OpenStreetMap' : 'UCSD campus map'})`)
           .addTo(officialRackLayer);
       });
     } catch {

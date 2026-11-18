@@ -236,11 +236,13 @@ function rackPopup(rack) {
   if (rack.notes) {
     box.append(document.createElement('br'), rack.notes);
   }
+  const source = document.createElement('small');
   if (rack.team) {
-    const source = document.createElement('small');
     source.textContent = `Added by the team${rack.by ? ` (${rack.by})` : ''}${rack.date ? `, ${rack.date}` : ''}`;
-    box.append(document.createElement('br'), source);
+  } else {
+    source.textContent = rack.source === 'osm' ? 'From OpenStreetMap' : 'From the UCSD campus map';
   }
+  box.append(document.createElement('br'), source);
   return box;
 }
 
