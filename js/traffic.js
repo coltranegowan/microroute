@@ -179,6 +179,23 @@ export function trafficAt(zones, date) {
   return (edge) => factor.get(edge.id) ?? 1;
 }
 
+// The crowd level of an edge at a time: 'high', 'medium' or null. Outside a
+// class change, every edge gets null. A high zone wins over a medium zone.
+export function crowdLevelAt(zones, date) {
+  if (!classChangeAt(date)) {
+    return () => null;
+  }
+  const levels = new Map();
+  for (const { level, shares } of zones) {
+    for (const id of shares.keys()) {
+      if (levels.get(id) !== 'high') {
+        levels.set(id, level);
+      }
+    }
+  }
+  return (edge) => levels.get(edge.id) ?? null;
+}
+
 export async function loadTrafficZones(graph, url = 'data/traffic-zones.json') {
   const response = await fetch(url);
   if (!response.ok) {

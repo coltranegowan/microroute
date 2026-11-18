@@ -2,12 +2,12 @@
 import { insideArea, loadArea } from './area.js';
 import { formatStepDistance, makeDirections, spokenStep } from './directions.js';
 import {
-  RACK_MIN_ZOOM, createBikeLayer, createCrowdLayer, createMap, createPin, createRackLayer, createStepMarker, drawRoute,
+  RACK_MIN_ZOOM, createBikeLayer, createMap, createPin, createRackLayer, createStepMarker, drawRoute,
   fillRackLegend, fitWithPanel,
 } from './map.js';
-import { distance, findRoute, loadGraph, nearestNode } from './routing.js';
+import { distance, edgePoints, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
-import { classChangeAt, formatMinute, loadTrafficZones, nextClassChange, trafficAt } from './traffic.js';
+import { classChangeAt, crowdLevelAt, formatMinute, loadTrafficZones, nextClassChange, trafficAt } from './traffic.js';
 import { canSpeak, speak, stopSpeaking } from './voice.js';
 
 // A point that is farther than this from the nearest street is outside the map data.
@@ -69,7 +69,7 @@ const state = {
   racks: null, // from createRackLayer() in js/map.js
   nearestRack: null, // { marker, meters }: the rack nearest to pin B
   zones: [], // from js/traffic.js
-  crowds: null, // from createCrowdLayer() in js/map.js
+  routeCrowds: [], // [{ level, points }]: the crowded parts of the route
   crowdWindow: null, // the class change window that the route uses, as 'start-end', or ''
   crowdSlot: null, // the class change window at the departure time, as [start, end], or null
 };
@@ -296,7 +296,7 @@ function updateCrowds() {
   const when = ui.leave.value === 'now' ? 'now' : 'at this time';
   if (slot) {
     ui.crowdHelp.textContent = `Class change ${when} (${formatMinute(slot[0])}–${formatMinute(slot[1])}). `
-      + 'The route avoids the crowded paths where it can.';
+      + 'The route avoids the crowded paths where it can. A red or orange outline shows a crowd on the route.';
   } else {
     const next = nextClassChange(date);
     ui.crowdHelp.textContent = next
@@ -305,11 +305,30 @@ function updateCrowds() {
   }
 }
 
-// The crowded paths show only with a route at a class change.
+// The map shows a crowd only on the route, as a red or orange outline.
 function syncCrowds() {
-  const on = Boolean(state.crowdSlot && state.route && state.crowds);
-  state.crowds?.show(on);
-  ui.crowdKeys.forEach((item) => { item.hidden = !on; });
+  const levels = new Set(state.route ? state.routeCrowds.map((run) => run.level) : []);
+  ui.crowdKeys.forEach((item) => { item.hidden = !levels.has(item.dataset.level); });
+}
+
+// The runs of route edges with the same crowd level at the departure time.
+function crowdRuns(route) {
+  const levelOf = crowdLevelAt(state.zones, departure());
+  const runs = [];
+  let last = null;
+  for (const edge of route.edges) {
+    const level = levelOf(edge);
+    const line = edgePoints(state.graph, edge);
+    if (level && last?.level === level) {
+      last.points.push(...line.slice(1));
+    } else if (level) {
+      last = { level, points: [...line] };
+      runs.push(last);
+    } else {
+      last = null;
+    }
+  }
+  return runs;
 }
 
 function onLeaveChange() {
@@ -329,7 +348,7 @@ function setColorblind(on) {
   state.bikeLanes?.setColorblind(on);
   if (state.route) {
     state.routeLayer.remove();
-    state.routeLayer = drawRoute(map, state.route, { colorblind: on });
+    state.routeLayer = drawRoute(map, state.route, { colorblind: on, crowds: state.routeCrowds });
   }
 }
 
@@ -385,7 +404,8 @@ function updateRoute({ fit = false } = {}) {
   }
 
   state.route = route;
-  state.routeLayer = drawRoute(map, route, { colorblind: ui.colorblind.checked });
+  state.routeCrowds = crowdRuns(route);
+  state.routeLayer = drawRoute(map, route, { colorblind: ui.colorblind.checked, crowds: state.routeCrowds });
   const lowStress = route.lengthByLts[1] + route.lengthByLts[2];
   ui.distance.textContent = formatDistance(route.length);
   ui.time.textContent = formatTime(route.time);
@@ -522,7 +542,6 @@ try {
 try {
   if (state.graph) {
     state.zones = await loadTrafficZones(state.graph);
-    state.crowds = createCrowdLayer(map, state.graph, state.zones);
     updateCrowds();
     if (state.route) {
       updateRoute();

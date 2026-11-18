@@ -10,7 +10,7 @@ import { edgePoints } from './routing.js';
 //   cool colors  bike facilities: blue for paths, teal for a buffered lane,
 //                purple for a painted lane. A sharrow is only a marking in
 //                the car lane, so it is a muted brown.
-//   red, orange  crowds at class change (CROWD_COLOR), only with a route
+//   red, orange  crowds at class change (CROWD_COLOR), on the route outline only
 //   gold         the route, and nothing else
 //   green        bike racks
 //   navy         the app itself: pins, the area outline, the step marker
@@ -18,6 +18,11 @@ import { edgePoints } from './routing.js';
 // Colorblind mode: each type also gets a line pattern, so a rider can read
 // the type with no colors. The legend in css/style.css shows the same
 // patterns. The white line under the route shows in the gaps.
+// The route outline on a crowded part of the route, at a class change.
+// Orange is lighter than red, so the levels also read with no colors. In
+// colorblind mode the outline is also dashed.
+const CROWD_COLOR = { high: '#e53935', medium: '#ff9800' };
+
 const BIKE_STYLE = {
   path: { color: '#0b4f9c', pattern: null }, // solid
   shared_path: { color: '#2f9bf0', pattern: '14 7' }, // long dashes
@@ -109,7 +114,9 @@ export function createPin(latlng, kind) {
 // Draw a route from js/routing.js. Each edge gets the color of its bike
 // facility type. A white line under the colors keeps the route clear on the
 // map tiles. colorblind: true also gives each type its line pattern.
-export function drawRoute(map, route, { colorblind = false } = {}) {
+// crowds: [{ level, points }], the crowded parts of the route. Their outline
+// is red or orange, not gold.
+export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) {
   const layer = L.layerGroup();
   // A UCSD gold halo makes the route stand out from the bike lane layer.
   // No other line on the map is gold.
@@ -121,6 +128,17 @@ export function drawRoute(map, route, { colorblind = false } = {}) {
     lineJoin: 'round',
     interactive: false,
   }).addTo(layer);
+  for (const { level, points } of crowds) {
+    L.polyline(points, {
+      color: CROWD_COLOR[level],
+      weight: colorblind ? 15 : 13,
+      opacity: 1,
+      dashArray: colorblind ? '10 6' : null, // red and gold stripes, so the crowd shows with no colors
+      lineCap: 'butt',
+      lineJoin: 'round',
+      interactive: false,
+    }).addTo(layer);
+  }
   // A white line under the colors shows in the gaps of the colorblind patterns.
   L.polyline(route.points, {
     color: '#ffffff',
@@ -328,76 +346,4 @@ export function createStepMarker(latlng) {
     fillOpacity: 0.9,
     interactive: false,
   });
-}
-
-// The crowded paths of the traffic zones (js/traffic.js), as soft bands under
-// the bike lanes. The app shows them only with a route at a class change.
-// High is red and medium is orange. Orange is lighter than red, so the levels
-// also read with no colors.
-const CROWD_COLOR = { high: '#e53935', medium: '#ff9800' };
-
-// Zoomed out, the bands are thin and faint, so they do not cover the map.
-function crowdStyle(zoom) {
-  if (zoom <= 14) return { weight: 2, opacity: 0.35 };
-  if (zoom <= 15) return { weight: 3, opacity: 0.4 };
-  if (zoom <= 16) return { weight: 5, opacity: 0.45 };
-  if (zoom <= 17) return { weight: 8, opacity: 0.5 };
-  return { weight: 12, opacity: 0.5 };
-}
-
-// Returns an object:
-//   show(on)   put the bands on the map, or remove them
-export function createCrowdLayer(map, graph, zones) {
-  if (!map.getPane('crowds')) {
-    map.createPane('crowds').style.zIndex = 340; // under the bike lanes (350)
-  }
-  const renderer = L.canvas({ pane: 'crowds' });
-  const layer = L.layerGroup();
-  const edges = new Map([...graph.nodes.values()].flatMap((node) => node.out.map((edge) => [edge.id, edge])));
-  // A high zone wins where a high zone and a medium zone share a path.
-  const levels = new Map();
-  for (const { level, shares } of zones) {
-    for (const id of shares.keys()) {
-      if (levels.get(id) !== 'high') {
-        levels.set(id, level);
-      }
-    }
-  }
-  const seen = new Set();
-  // Medium first, so a high band shows on top where two bands meet.
-  const ordered = [...levels].sort(([, a], [, b]) => (a === b ? 0 : a === 'medium' ? -1 : 1));
-  for (const [id, level] of ordered) {
-    const edge = edges.get(id);
-    // The graph has most paths two times, one for each direction.
-    const key = edge && [edge.from, edge.to].sort().join('-') + edge.length;
-    if (!edge || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    L.polyline(edgePoints(graph, edge), {
-      renderer,
-      color: CROWD_COLOR[level],
-      ...crowdStyle(map.getZoom()),
-      lineCap: 'butt', // round ends make a dot on each short path
-      lineJoin: 'round',
-      interactive: false,
-    }).addTo(layer);
-  }
-
-  map.on('zoomend', () => {
-    if (map.hasLayer(layer)) {
-      layer.eachLayer((line) => line.setStyle(crowdStyle(map.getZoom())));
-    }
-  });
-
-  return {
-    show(on) {
-      if (on && !map.hasLayer(layer)) {
-        layer.eachLayer((line) => line.setStyle(crowdStyle(map.getZoom())));
-        layer.addTo(map);
-      } else if (!on) {
-        layer.remove();
-      }
-    },
-  };
 }
