@@ -241,12 +241,15 @@ select,
 .swatch.sharrow { background: var(--bike-sharrow); }
 .swatch.none { background: var(--bike-none); }
 
-/* The same color as CROWD_STYLE in js/map.js: dark for a high zone, light for a medium zone. */
+/* The same colors as CROWD_COLOR in js/map.js. */
 .swatch.crowd {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, rgba(194, 24, 91, 0.45) 0 50%, rgba(194, 24, 91, 0.22) 50%);
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0.7;
 }
+
+.swatch.crowd.high { background: #e53935; }
+.swatch.crowd.medium { background: #fdd835; }
 
 .leave-row {
   display: flex;

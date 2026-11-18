@@ -323,11 +323,20 @@ export function createStepMarker(latlng) {
   });
 }
 
-// The crowded paths of the traffic zones (js/traffic.js), as wide soft bands
-// under the bike lanes. The app shows them only at a class change. Both levels
-// use one hue, and a high zone is darker, so the levels read with no colors.
-// No bike lane type uses this hue.
-const CROWD_STYLE = { high: { color: '#c2185b', opacity: 0.45 }, medium: { color: '#c2185b', opacity: 0.22 } };
+// The crowded paths of the traffic zones (js/traffic.js), as soft bands under
+// the bike lanes. The app shows them only with a route at a class change.
+// High is red and medium is yellow. Yellow is lighter than red, so the levels
+// also read with no colors.
+const CROWD_COLOR = { high: '#e53935', medium: '#fdd835' };
+
+// Zoomed out, the bands are thin and faint, so they do not cover the map.
+function crowdStyle(zoom) {
+  if (zoom <= 14) return { weight: 2, opacity: 0.35 };
+  if (zoom <= 15) return { weight: 3, opacity: 0.4 };
+  if (zoom <= 16) return { weight: 5, opacity: 0.45 };
+  if (zoom <= 17) return { weight: 8, opacity: 0.5 };
+  return { weight: 12, opacity: 0.5 };
+}
 
 // Returns an object:
 //   show(on)   put the bands on the map, or remove them
@@ -348,7 +357,9 @@ export function createCrowdLayer(map, graph, zones) {
     }
   }
   const seen = new Set();
-  for (const [id, level] of levels) {
+  // Medium first, so a high band shows on top where two bands meet.
+  const ordered = [...levels].sort(([, a], [, b]) => (a === b ? 0 : a === 'medium' ? -1 : 1));
+  for (const [id, level] of ordered) {
     const edge = edges.get(id);
     // The graph has most paths two times, one for each direction.
     const key = edge && [edge.from, edge.to].sort().join('-') + edge.length;
@@ -358,18 +369,28 @@ export function createCrowdLayer(map, graph, zones) {
     seen.add(key);
     L.polyline(edgePoints(graph, edge), {
       renderer,
-      ...CROWD_STYLE[level],
-      weight: 14,
-      lineCap: 'round',
+      color: CROWD_COLOR[level],
+      ...crowdStyle(map.getZoom()),
+      lineCap: 'butt', // round ends make a dot on each short path
       lineJoin: 'round',
       interactive: false,
     }).addTo(layer);
   }
 
+  map.on('zoomend', () => {
+    if (map.hasLayer(layer)) {
+      layer.eachLayer((line) => line.setStyle(crowdStyle(map.getZoom())));
+    }
+  });
+
   return {
     show(on) {
-      if (on) layer.addTo(map);
-      else layer.remove();
+      if (on && !map.hasLayer(layer)) {
+        layer.eachLayer((line) => line.setStyle(crowdStyle(map.getZoom())));
+        layer.addTo(map);
+      } else if (!on) {
+        layer.remove();
+      }
     },
   };
 }

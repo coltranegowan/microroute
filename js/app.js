@@ -37,7 +37,7 @@ const ui = {
   leaveTime: document.getElementById('leave-time'),
   crowdHelp: document.getElementById('crowd-help'),
   crowdNote: document.getElementById('crowd-note'),
-  crowdKey: document.getElementById('crowd-key'),
+  crowdKeys: document.querySelectorAll('.crowd-key'),
   summary: document.getElementById('summary'),
   distance: document.getElementById('distance'),
   time: document.getElementById('time'),
@@ -71,6 +71,7 @@ const state = {
   zones: [], // from js/traffic.js
   crowds: null, // from createCrowdLayer() in js/map.js
   crowdWindow: null, // the class change window that the route uses, as 'start-end', or ''
+  crowdSlot: null, // the class change window at the departure time, as [start, end], or null
 };
 
 function setStatus(text, isError = false) {
@@ -95,6 +96,7 @@ function clearRoute() {
   state.route = null;
   ui.summary.hidden = true;
   ui.crowdNote.hidden = true;
+  syncCrowds();
   state.nearestRack = null;
   ui.nearestRack.hidden = true;
   state.racks?.focus(null);
@@ -287,20 +289,27 @@ function updateCrowds() {
   const date = departure();
   const slot = classChangeAt(date);
   state.crowdWindow = windowKey(date);
+  state.crowdSlot = slot;
   const hasZones = state.zones.some((zone) => zone.shares.size > 0);
-  state.crowds?.show(Boolean(slot));
-  ui.crowdKey.hidden = !slot || !hasZones;
+  syncCrowds();
   ui.crowdHelp.hidden = !hasZones;
   const when = ui.leave.value === 'now' ? 'now' : 'at this time';
   if (slot) {
     ui.crowdHelp.textContent = `Class change ${when} (${formatMinute(slot[0])}–${formatMinute(slot[1])}). `
-      + 'The pink bands show the crowded paths. The route avoids them where it can.';
+      + 'The route avoids the crowded paths where it can.';
   } else {
     const next = nextClassChange(date);
     ui.crowdHelp.textContent = next
       ? `No class change ${when}. The next one starts at ${formatMinute(next[0])}.`
       : `No class change ${when}.`;
   }
+}
+
+// The crowded paths show only with a route at a class change.
+function syncCrowds() {
+  const on = Boolean(state.crowdSlot && state.route && state.crowds);
+  state.crowds?.show(on);
+  ui.crowdKeys.forEach((item) => { item.hidden = !on; });
 }
 
 function onLeaveChange() {
@@ -382,6 +391,7 @@ function updateRoute({ fit = false } = {}) {
   ui.time.textContent = formatTime(route.time);
   ui.lowStress.textContent = `${Math.round((100 * lowStress) / route.length)}%`;
   ui.summary.hidden = false;
+  syncCrowds();
   if (route.crowdDelay >= 30) {
     ui.crowdNote.textContent = `The time includes ${formatTime(route.crowdDelay)} for class change crowds.`;
     ui.crowdNote.hidden = false;
