@@ -1,1 +1,255 @@
-[]
+[
+  {
+    "id": "mwldhemu-ddc1u",
+    "lat": 32.880393584045144,
+    "lon": -117.23625540733339,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldm3wq-s1kub",
+    "lat": 32.88133288590701,
+    "lon": -117.23539441823962,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldme2g-qdqts",
+    "lat": 32.881341895948616,
+    "lon": -117.23398357629777,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldmvvn-5pwug",
+    "lat": 32.882044676371294,
+    "lon": -117.23496526479722,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldnh9k-x4ut1",
+    "lat": 32.88225190543205,
+    "lon": -117.23306357860567,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldnlqo-5iees",
+    "lat": 32.88288259959192,
+    "lon": -117.23363220691682,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldntrj-cq5f5",
+    "lat": 32.88340066643701,
+    "lon": -117.23313868045808,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldnzfq-2jmbw",
+    "lat": 32.883713757540455,
+    "lon": -117.233122587204,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldo4k0-globg",
+    "lat": 32.883961526694364,
+    "lon": -117.23284095525743,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldoafk-gwc53",
+    "lat": 32.8845133736839,
+    "lon": -117.23280876874925,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldoe77-sau3h",
+    "lat": 32.88467104362114,
+    "lon": -117.23240911960603,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldof0d-f0kux",
+    "lat": 32.884551664980165,
+    "lon": -117.23221331834795,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldohrx-pde2q",
+    "lat": 32.88464626693529,
+    "lon": -117.23208189010622,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldop1h-xy8eb",
+    "lat": 32.8843534510324,
+    "lon": -117.23228842020036,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldorzz-7bmhe",
+    "lat": 32.884092168332955,
+    "lon": -117.23237156867982,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldovr6-wj8qx",
+    "lat": 32.88381737018,
+    "lon": -117.23226428031923,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldp01f-gdawc",
+    "lat": 32.883624732755955,
+    "lon": -117.23235909855687,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldp25p-0fzfi",
+    "lat": 32.88368525625758,
+    "lon": -117.23205184803123,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldp60m-qq5aw",
+    "lat": 32.88332858775299,
+    "lon": -117.23239302635194,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldpiwx-hzpr2",
+    "lat": 32.88322497454197,
+    "lon": -117.23279267549518,
+    "kind": "enclosure",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldpx0s-7q29p",
+    "lat": 32.88251995099839,
+    "lon": -117.23263710737231,
+    "kind": "enclosure",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldqyhm-dkple",
+    "lat": 32.88195682912322,
+    "lon": -117.22968667745592,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  },
+  {
+    "id": "mwldr45b-dxl56",
+    "lat": 32.884324169388904,
+    "lon": -117.22948014736177,
+    "kind": "rack",
+    "near": "",
+    "spaces": null,
+    "notes": "",
+    "by": "Daniel",
+    "date": "2026-11-18"
+  }
+]

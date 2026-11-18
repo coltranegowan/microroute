@@ -784,7 +784,7 @@
       const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
       racks.push({
         id, lat, lon, kind: 'rack', near: '', spaces: null, notes: '',
-        by: ui['team-name'].value.trim(), date: new Date().toISOString().slice(0, 10),
+        by: ui['team-name'].value.trim(), date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
       });
       selectedRack = id;
       persistRacks();
