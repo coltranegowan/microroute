@@ -310,10 +310,10 @@ select,
   accent-color: var(--navy);
 }
 
-/* Bike racks: a UCSD gold sign with a navy bike. No other marker on the map is gold. */
+/* Bike racks: a navy sign with a UCSD gold bike. */
 
 :root {
-  --rack: #ffcd00;
+  --rack: var(--navy);
 }
 
 .rack-icon {
@@ -327,7 +327,7 @@ select,
   border: 2px solid #ffffff;
   border-radius: 5px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  color: var(--navy);
+  color: var(--gold);
   background: var(--rack);
 }
 
@@ -339,7 +339,7 @@ select,
 
 /* The rack nearest to B, which the panel names. */
 .rack-icon.nearest {
-  box-shadow: 0 0 0 3px var(--navy), 0 1px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px var(--gold), 0 1px 6px rgba(0, 0, 0, 0.5);
 }
 
 .rack-icon svg {
@@ -357,8 +357,8 @@ select,
   padding: 1.5px;
   border: 1.5px solid #ffffff;
   border-radius: 50%;
-  color: var(--gold);
-  background: var(--navy);
+  color: var(--navy);
+  background: var(--gold);
 }
 
 .rack-icon.near .rack-lock {

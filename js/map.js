@@ -12,7 +12,7 @@ import { edgePoints } from './routing.js';
 //                the car lane, so it is a muted brown.
 //   red, orange  crowds at class change (CROWD_COLOR), on the route outline only
 //   green        the route outline, and nothing else
-//   gold         bike racks (with a navy bike)
+//   navy + gold  bike racks: a navy sign with a gold bike
 //   navy         the app itself: pins, the area outline, the step marker
 //
 // Colorblind mode: each type also gets a line pattern, so a rider can read
@@ -234,7 +234,7 @@ export function fillRackLegend() {
   }
 }
 
-// size: 'small' or 'near'. nearest: true adds a navy ring.
+// size: 'small' or 'near'. nearest: true adds a gold ring.
 function rackIcon(rack, size = 'small', nearest = false) {
   const px = size === 'near' ? 28 : 20;
   const badge = rack.kind === 'enclosure' ? `<span class="rack-lock">${LOCK_SVG}</span>` : '';
@@ -275,7 +275,7 @@ function rackPopup(rack) {
 //
 // The racks show at zoom RACK_MIN_ZOOM and closer. After a route, the racks
 // near the end show at full size at every zoom, and the nearest rack gets a
-// navy ring.
+// gold ring.
 //
 // Returns an object:
 //   markers            one Leaflet marker for each rack, with the rack in marker.rack
