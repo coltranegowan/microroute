@@ -10,6 +10,12 @@
 
 export const MULTIPLIERS = { high: 2, medium: 1.5 };
 
+// The extra stress of a path in a zone, at all times. People on foot use these
+// paths all day, not only at class change, and the LTS score cannot see them:
+// almost every campus path is LTS 1. The Safest setting adds this to the LTS,
+// so it avoids the busy walks. The Fastest setting (w = 0) does not use it.
+export const ZONE_STRESS = { high: 2, medium: 1 };
+
 // The class change windows, as [start, end] in minutes after midnight.
 // Mon/Wed/Fri classes are 50 minutes: 8:00-8:50, 9:00-9:50, ... 7:00-7:50 PM.
 // Tue/Thu classes are 80 minutes: 8:00-9:20, 9:30-10:50, ... 6:30-7:50 PM.
@@ -194,6 +200,18 @@ export function crowdLevelAt(zones, date) {
     }
   }
   return (edge) => levels.get(edge.id) ?? null;
+}
+
+// The extra stress function for findRoute() in js/routing.js, at all times.
+// A segment with share s of a zone gets ZONE_STRESS × s. The highest zone wins.
+export function zoneStressOf(zones) {
+  const stress = new Map();
+  for (const { level, shares } of zones) {
+    for (const [id, share] of shares) {
+      stress.set(id, Math.max(stress.get(id) ?? 0, ZONE_STRESS[level] * share));
+    }
+  }
+  return (edge) => stress.get(edge.id) ?? 0;
 }
 
 export async function loadTrafficZones(graph, url = 'data/traffic-zones.json') {

@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs';
 import { buildGraph, findRoute, nearestNode } from '../js/routing.js';
-import { buildZones, classChangeAt, nextClassChange, trafficAt } from '../js/traffic.js';
+import { buildZones, classChangeAt, nextClassChange, trafficAt, zoneStressOf } from '../js/traffic.js';
 
 const read = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url)));
 const graph = buildGraph(read('../data/graph.json'));
@@ -74,6 +74,27 @@ for (const [from, to] of TRIPS) {
   }
 }
 check(delayed > 0, 'a class change must change at least one campus route');
+
+// The zone stress: at a quiet time, Safest must avoid the busy walks and Fastest must not change.
+const extraStress = zoneStressOf(zones);
+check(edges.every((edge) => extraStress(edge) >= 0), 'no zone stress can be less than 0');
+let different = 0;
+for (const [from, to] of TRIPS) {
+  const plain = findRoute(graph, node(from), node(to), { w: 0, traffic: quiet });
+  const fastest = findRoute(graph, node(from), node(to), { w: 0, traffic: quiet, extraStress });
+  const safest = findRoute(graph, node(from), node(to), { w: 1.5, traffic: quiet, extraStress });
+  const dijkstra = findRoute(graph, node(from), node(to), { w: 1.5, traffic: quiet, extraStress, useHeuristic: false });
+  check(Math.abs(fastest.cost - plain.cost) < 1e-6, `${from} → ${to}: the zone stress must not change Fastest`);
+  check(Math.abs(safest.cost - dijkstra.cost) < 1e-6, `${from} → ${to}: A* cost ≠ Dijkstra cost with zone stress`);
+  const inZones = (route) => route.edges.reduce((sum, edge) => sum + (extraStress(edge) > 0 ? edge.length : 0), 0) / route.length;
+  check(inZones(safest) <= inZones(fastest) + 1e-9, `${from} → ${to}: Safest must not use more busy walks than Fastest`);
+  if (safest.edges.map((e) => e.id).join() !== fastest.edges.map((e) => e.id).join()) {
+    different += 1;
+  }
+  console.log(`  quiet, ${from} → ${to}: Fastest ${(fastest.time / 60).toFixed(1)} min, ${Math.round(100 * inZones(fastest))}% in zones; `
+    + `Safest ${(safest.time / 60).toFixed(1)} min, ${Math.round(100 * inZones(safest))}% in zones`);
+}
+check(different >= 2, 'Safest must change most campus routes at a quiet time');
 
 console.log(failures ? `\n${failures} checks failed` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

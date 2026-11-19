@@ -1,12 +1,13 @@
 // A* route search on data/graph.json.
 //
-// cost = time × traffic × (1 + w × stress)
+// cost = time × traffic × (1 + w × (stress + extra))
 //
 // time is the travel time in seconds, with the climb (see edgeTime), stress
 // is the LTS level (1-4) and w is
 // the safety weight. When w = 0, the route is the fastest route. traffic is
 // the crowd multiplier from js/traffic.js: more than 1 on a crowded path at a
-// class change, else 1.
+// class change, else 1. extra is the zone stress from js/traffic.js: more
+// than 0 on a path in a traffic zone, at all times.
 //
 // This file has no browser code except loadGraph(), so Node can test it.
 
@@ -88,6 +89,7 @@ export function nearestNode(graph, lat, lon) {
 //   w        safety weight, 0 or more (0 = fastest)
 //   mode     a key of MODE_SPEED
 //   traffic  function(edge) that gives a multiplier of 1 or more
+//   extraStress  function(edge) that gives a stress of 0 or more, added to the LTS
 //   useHeuristic  false gives Dijkstra, for tests
 //
 // Returns null if no route exists.
@@ -96,6 +98,7 @@ export function findRoute(graph, startId, goalId, options = {}) {
     w = 0,
     mode = 'bike',
     traffic = () => 1,
+    extraStress = () => 0,
     useHeuristic = true,
   } = options;
   const speed = MODE_SPEED[mode];
@@ -111,12 +114,13 @@ export function findRoute(graph, startId, goalId, options = {}) {
     throw new Error('The start node or the goal node is not in the graph');
   }
 
-  // The lowest multiplier is (1 + w): LTS is 1 or more and traffic is 1 or more.
+  // The lowest multiplier is (1 + w): LTS is 1 or more, the extra stress is 0
+  // or more and traffic is 1 or more.
   // Thus this heuristic is never more than the true remaining cost.
   const minFactor = useHeuristic ? (1 + w) / speed : 0;
   const heuristic = (node) => minFactor * distance(node.lat, node.lon, goal.lat, goal.lon);
 
-  const edgeCost = (edge) => edgeTime(edge, mode) * traffic(edge) * (1 + w * edge.lts);
+  const edgeCost = (edge) => edgeTime(edge, mode) * traffic(edge) * (1 + w * (edge.lts + extraStress(edge)));
 
   const bestCost = new Map([[startId, 0]]);
   const cameBy = new Map(); // node id → the edge that reached it

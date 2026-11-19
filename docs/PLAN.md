@@ -45,10 +45,10 @@ OSM + SANDAG + USGS  →  scripts/ (Python + osmnx)  →  data/graph.json  →  
 ## Routing cost
 
 ```text
-cost = time × traffic × (1 + w × stress)
+cost = time × traffic × (1 + w × (stress + zone stress))
 ```
 
-`w` is the safety weight. `stress` is the LTS level of the street segment.
+`w` is the safety weight. `stress` is the LTS level of the street segment. `zone stress` is 2 on a path in a high traffic zone and 1 in a medium zone, at all times, because almost every campus path is LTS 1. `time` includes the climb (USGS elevation).
 `traffic` is 1, except on a crowded path in a traffic zone during a class change. There, it is 2 for a high zone and 1.5 for a medium zone. On a segment that the zone covers only in part, the value is 1 + (multiplier − 1) × the covered part.
 
 | Stress level | Typical street | Multiplier when `w = 1` |

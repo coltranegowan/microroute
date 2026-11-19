@@ -37,6 +37,16 @@ The route switch has two sides: **Fastest** (safety weight `w = 0`) and **Safest
 also includes the car speed and the number of lanes. A painted bike lane next to fast traffic is high
 stress. The route summary shows the part of the route at LTS 1–2 as **Low stress**.
 
+Almost every campus path is LTS 1, so the LTS alone cannot tell the busy walks from the quiet ones. **Safest** also
+adds a zone stress at all times: +2 on a path in a high traffic zone and +1 in a medium zone, times the part of the
+path that the zone covers (`ZONE_STRESS` in [js/traffic.js](js/traffic.js)):
+
+```text
+cost = time × traffic × (1 + w × (LTS + zone stress))
+```
+
+**Fastest** (`w = 0`) does not use the stress, so it is still the quickest route.
+
 ## Build the street graph
 
 ```sh

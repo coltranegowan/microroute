@@ -7,7 +7,9 @@ import {
 } from './map.js';
 import { distance, edgePoints, findRoute, loadGraph, nearestNode } from './routing.js';
 import { attachAutocomplete, loadPlaces } from './search.js';
-import { classChangeAt, crowdLevelAt, formatMinute, loadTrafficZones, nextClassChange, trafficAt } from './traffic.js';
+import {
+  classChangeAt, crowdLevelAt, formatMinute, loadTrafficZones, nextClassChange, trafficAt, zoneStressOf,
+} from './traffic.js';
 import { canSpeak, speak, stopSpeaking } from './voice.js';
 
 // A point that is farther than this from the nearest street is outside the map data.
@@ -76,6 +78,7 @@ const state = {
   racks: null, // from createRackLayer() in js/map.js
   nearestRack: null, // { marker, meters }: the rack nearest to pin B
   zones: [], // from js/traffic.js
+  zoneStress: () => 0, // the extra stress of the paths in the zones, for Safest
   routeCrowds: [], // [{ level, points }]: the crowded parts of the route
   crowdWindow: null, // the class change window that the route uses, as 'start-end', or ''
   crowdSlot: null, // the class change window at the departure time, as [start, end], or null
@@ -415,6 +418,7 @@ function updateRoute({ fit = false } = {}) {
     w: Number(choice('route')),
     mode: ui.mode.value,
     traffic: trafficAt(state.zones, departure()),
+    extraStress: state.zoneStress,
   });
   if (!route) {
     setStatus('No route found between these points.', true);
@@ -559,6 +563,7 @@ try {
 try {
   if (state.graph) {
     state.zones = await loadTrafficZones(state.graph);
+    state.zoneStress = zoneStressOf(state.zones);
     updateCrowds();
     if (state.route) {
       updateRoute();
