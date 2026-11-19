@@ -42,9 +42,11 @@ adds a zone stress at all times: +2 on a path in a high traffic zone and +1 in a
 path that the zone covers (`ZONE_STRESS` in [js/traffic.js](js/traffic.js)):
 
 ```text
-cost = time × traffic × (1 + w × (LTS + zone stress))
+cost = time × traffic + w × (LTS + zone stress) × length ÷ 4.44 m/s
 ```
 
+The safety part uses the length, not the time, so **Safest** avoids the same kinds of paths on a bike, an e-bike or a
+scooter. 4.44 m/s (16 km/h) is the flat bike speed, so for a bike on flat ground the two parts have the same scale.
 **Fastest** (`w = 0`) does not use the stress, so it is still the quickest route.
 
 ## Build the street graph

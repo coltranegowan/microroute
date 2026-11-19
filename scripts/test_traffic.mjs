@@ -1,7 +1,7 @@
 // Checks for js/traffic.js on the real graph and zones. Run: node scripts/test_traffic.mjs
 
 import { readFileSync } from 'node:fs';
-import { buildGraph, findRoute, nearestNode } from '../js/routing.js';
+import { STRESS_SPEED, buildGraph, edgeTime, findRoute, nearestNode } from '../js/routing.js';
 import { buildZones, classChangeAt, nextClassChange, trafficAt, zoneStressOf } from '../js/traffic.js';
 
 const read = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url)));
@@ -95,6 +95,16 @@ for (const [from, to] of TRIPS) {
     + `Safest ${(safest.time / 60).toFixed(1)} min, ${Math.round(100 * inZones(safest))}% in zones`);
 }
 check(different >= 2, 'Safest must change most campus routes at a quiet time');
+
+// The safety part of the cost uses the length, so it is the same for every mode.
+for (const [from, to] of TRIPS) {
+  for (const mode of ['bike', 'ebike', 'scooter']) {
+    const route = findRoute(graph, node(from), node(to), { w: 1.5, mode, traffic: busy, extraStress });
+    const timePart = route.edges.reduce((sum, edge) => sum + edgeTime(edge, mode) * busy(edge), 0);
+    const safetyPart = route.edges.reduce((sum, edge) => sum + 1.5 * (edge.lts + extraStress(edge)) * (edge.length / STRESS_SPEED), 0);
+    check(Math.abs(route.cost - timePart - safetyPart) < 1e-6, `${from} → ${to}, ${mode}: the cost is not time part + safety part`);
+  }
+}
 
 console.log(failures ? `\n${failures} checks failed` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

@@ -1,13 +1,15 @@
 // A* route search on data/graph.json.
 //
-// cost = time × traffic × (1 + w × (stress + extra))
+// cost = time × traffic + w × (stress + extra) × length / STRESS_SPEED
 //
-// time is the travel time in seconds, with the climb (see edgeTime), stress
-// is the LTS level (1-4) and w is
-// the safety weight. When w = 0, the route is the fastest route. traffic is
-// the crowd multiplier from js/traffic.js: more than 1 on a crowded path at a
-// class change, else 1. extra is the zone stress from js/traffic.js: more
-// than 0 on a path in a traffic zone, at all times.
+// time is the travel time in seconds, with the climb (see edgeTime). traffic
+// is the crowd multiplier from js/traffic.js: more than 1 on a crowded path
+// at a class change, else 1. stress is the LTS level (1-4) and extra is the
+// zone stress from js/traffic.js: more than 0 on a path in a traffic zone, at
+// all times. w is the safety weight. When w = 0, the route is the fastest route.
+//
+// The safety part uses the length, not the time, so Safest avoids the same
+// paths for every mode. Only the time part changes with the mode.
 //
 // This file has no browser code except loadGraph(), so Node can test it.
 
@@ -17,6 +19,10 @@ export const MODE_SPEED = {
   ebike: 24 / 3.6, // 24 km/h
   scooter: 20 / 3.6, // 20 km/h
 };
+
+// The safety part counts each meter as if a bike rode it on flat ground, so a
+// bike on flat ground with no crowd has cost = time × (1 + w × stress).
+export const STRESS_SPEED = MODE_SPEED.bike;
 
 // The height in m that each mode climbs in one second, on top of the flat
 // time. Climb rate = power / (mass × 9.81). A rider at about 150 W with a bike
@@ -114,13 +120,14 @@ export function findRoute(graph, startId, goalId, options = {}) {
     throw new Error('The start node or the goal node is not in the graph');
   }
 
-  // The lowest multiplier is (1 + w): LTS is 1 or more, the extra stress is 0
-  // or more and traffic is 1 or more.
-  // Thus this heuristic is never more than the true remaining cost.
-  const minFactor = useHeuristic ? (1 + w) / speed : 0;
+  // Each meter costs at least 1 / speed (traffic is 1 or more and the climb is
+  // 0 or more) plus w / STRESS_SPEED (LTS is 1 or more and the extra stress is
+  // 0 or more). Thus this heuristic is never more than the true remaining cost.
+  const minFactor = useHeuristic ? 1 / speed + w / STRESS_SPEED : 0;
   const heuristic = (node) => minFactor * distance(node.lat, node.lon, goal.lat, goal.lon);
 
-  const edgeCost = (edge) => edgeTime(edge, mode) * traffic(edge) * (1 + w * (edge.lts + extraStress(edge)));
+  const edgeCost = (edge) => edgeTime(edge, mode) * traffic(edge)
+    + w * (edge.lts + extraStress(edge)) * (edge.length / STRESS_SPEED);
 
   const bestCost = new Map([[startId, 0]]);
   const cameBy = new Map(); // node id → the edge that reached it
