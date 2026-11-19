@@ -17,6 +17,7 @@ from pathlib import Path
 
 import osmnx as ox
 from shapely.geometry import LineString, shape
+from shapely.ops import unary_union
 
 from elevation import climb, elevations
 from lts import BIKE_TYPES, bike_type, lts
@@ -82,11 +83,47 @@ def remove_sidewalks_off_campus(graph):
     print(f"Removed {len(off_campus)} sidewalk edges off campus")
 
 
+# A walkway that runs along a road only copies the road on the map, and the
+# Safest setting would choose it over the bike lane. A shared path is removed
+# when ALONG_ROAD_SHARE of it is within ALONG_ROAD_M of a car road and it is
+# longer than ALONG_ROAD_MIN_M. Crosswalks and short links to the street stay.
+CAR_ROADS = {"primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link",
+             "unclassified", "residential", "living_street", "service"}
+ALONG_ROAD_M = 15
+ALONG_ROAD_SHARE = 0.7
+ALONG_ROAD_MIN_M = 20
+
+
+def _first(value):
+    return value if isinstance(value, str) or value is None else value[0]
+
+
+def remove_walks_along_roads(graph):
+    projected = ox.project_graph(graph)
+    def line(u, v, d):
+        if "geometry" in d:
+            return d["geometry"]
+        return LineString([(projected.nodes[u]["x"], projected.nodes[u]["y"]),
+                           (projected.nodes[v]["x"], projected.nodes[v]["y"])])
+    roads = [line(u, v, d) for u, v, d in projected.edges(data=True) if _first(d.get("highway")) in CAR_ROADS]
+    near_roads = unary_union(roads).buffer(ALONG_ROAD_M)
+    along = []
+    for u, v, k, d in projected.edges(keys=True, data=True):
+        if bike_type(d) != "shared_path" or "crossing" in str(d.get("footway")) or d["length"] <= ALONG_ROAD_MIN_M:
+            continue
+        geometry = line(u, v, d)
+        if geometry.intersection(near_roads).length >= ALONG_ROAD_SHARE * geometry.length:
+            along.append((u, v, k))
+    graph.remove_edges_from(along)
+    print(f"Removed {len(along)} walkway edges that run along a road")
+
+
 def download():
     ox.settings.useful_tags_way = list(dict.fromkeys(ox.settings.useful_tags_way + EXTRA_TAGS))
     ox.settings.cache_folder = str(ROOT / "cache")
     graph = ox.graph_from_polygon(load_area(), custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES])
     remove_sidewalks_off_campus(graph)
+    remove_walks_along_roads(graph)
     # Keep only the part where every node can reach every other node.
     # Otherwise A* can start in a piece that has no route out.
     return ox.truncate.largest_component(graph, strongly=True)

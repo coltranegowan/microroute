@@ -31,7 +31,9 @@ people on foot, buffered bike lane, painted bike lane, sharrow, or none. The typ
 `cycleway` tags (`bike_type()` in [scripts/lts.py](scripts/lts.py)).
 All walking paths are in the graph as paths shared with people on foot, except steps and paths where OSM says
 bikes must not ride (`bicycle=no` or `dismount`). Sidewalks are in the graph only on the UCSD campus (the OSM
-campus area plus 30 m), where many paths join the streets through a short sidewalk.
+campus area plus 30 m), where many paths join the streets through a short sidewalk. A walkway that runs along a road
+(70% or more of it within 15 m of a car road, and longer than 20 m) is left out everywhere: it only copies the road
+on the map, and **Safest** would choose it over the bike lane. Crosswalks stay.
 
 The route switch has two sides: **Fastest** (safety weight `w = 0`) and **Safest** (`w = 1.5`, the default). The **Safest** setting does not use the type alone. It uses the Level of Traffic Stress (LTS 1–4), which
 also includes the car speed and the number of lanes. A painted bike lane next to fast traffic is high
