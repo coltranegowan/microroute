@@ -33,7 +33,7 @@ All walking paths are in the graph as paths shared with people on foot, except s
 bikes must not ride (`bicycle=no` or `dismount`). Sidewalks are in the graph only on the UCSD campus (the OSM
 campus area plus 30 m), where many paths join the streets through a short sidewalk.
 
-The **Safest** setting does not use the type alone. It uses the Level of Traffic Stress (LTS 1–4), which
+The route switch has two sides: **Fastest** (safety weight `w = 0`) and **Safest** (`w = 1.5`, the default). The **Safest** setting does not use the type alone. It uses the Level of Traffic Stress (LTS 1–4), which
 also includes the car speed and the number of lanes. A painted bike lane next to fast traffic is high
 stress. The route summary shows the part of the route at LTS 1–2 as **Low stress**.
 
@@ -87,7 +87,7 @@ The paths in [data/traffic-zones.json](data/traffic-zones.json) are crowded in t
 - Mon/Wed/Fri: 8:50–9:00 AM, 9:50–10:00 AM, and each hour until 7:50–8:00 PM.
 - Tue/Thu: 9:20–9:30 AM, 10:50–11:00 AM, and each 90 minutes until 7:50–8:00 PM.
 
-The rider picks **Leave: Now** or a day and a time. At a class change, a high zone makes its paths 2 times
+The rider picks **Leave: Now**, or **Later** with a day and a time. At a class change, a high zone makes its paths 2 times
 slower and a medium zone 1.5 times slower. The route avoids them where it can, the map shows them as pink
 bands, and the route time includes the delay. The schedule is `CLASS_CHANGES` in [js/traffic.js](js/traffic.js).
 

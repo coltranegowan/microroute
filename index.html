@@ -47,25 +47,23 @@
           </select>
         </div>
 
-        <div class="field">
-          <label for="safety">Route</label>
-          <div class="slider-row">
-            <span>Fastest</span>
-            <input id="safety" type="range" min="0" max="3" step="0.5" value="1"
-                   aria-describedby="safety-help">
-            <span>Safest</span>
+        <fieldset class="field">
+          <legend>Route</legend>
+          <div class="toggle">
+            <label><input type="radio" name="route" value="0"><span>Fastest</span></label>
+            <label><input type="radio" name="route" value="1.5" checked><span>Safest</span></label>
           </div>
-          <p id="safety-help" class="help">Move to the right to stay off busy streets.</p>
-        </div>
+          <p class="help">Safest stays off busy streets, even if the trip is a little longer.</p>
+        </fieldset>
 
-        <div class="field">
-          <label for="leave">Leave</label>
-          <div class="leave-row">
-            <select id="leave">
-              <option value="now">Now</option>
-              <option value="later">At a time</option>
-            </select>
-            <select id="leave-day" aria-label="Day" hidden>
+        <fieldset class="field">
+          <legend>Leave</legend>
+          <div class="toggle">
+            <label><input type="radio" name="leave" value="now" checked><span>Now</span></label>
+            <label><input type="radio" name="leave" value="later"><span>Later</span></label>
+          </div>
+          <div id="leave-when" class="leave-row" hidden>
+            <select id="leave-day" aria-label="Day">
               <option value="1">Mon</option>
               <option value="2">Tue</option>
               <option value="3">Wed</option>
@@ -74,10 +72,10 @@
               <option value="6">Sat</option>
               <option value="0">Sun</option>
             </select>
-            <input id="leave-time" type="time" aria-label="Time" hidden>
+            <input id="leave-time" type="time" aria-label="Time">
           </div>
           <p id="crowd-help" class="help" hidden></p>
-        </div>
+        </fieldset>
 
         <dl id="summary" class="summary" hidden>
           <div><dt>Distance</dt><dd id="distance"></dd></div>

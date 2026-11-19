@@ -36,8 +36,9 @@ const ui = {
   to: document.getElementById('to'),
   toList: document.getElementById('to-list'),
   mode: document.getElementById('mode'),
-  safety: document.getElementById('safety'),
-  leave: document.getElementById('leave'),
+  routeChoices: document.querySelectorAll('input[name="route"]'),
+  leaveChoices: document.querySelectorAll('input[name="leave"]'),
+  leaveWhen: document.getElementById('leave-when'),
   leaveDay: document.getElementById('leave-day'),
   leaveTime: document.getElementById('leave-time'),
   crowdHelp: document.getElementById('crowd-help'),
@@ -274,12 +275,17 @@ function goToNearestRack() {
   marker.openPopup(); // the nearest rack is big, so it shows at every zoom
 }
 
+// The value of the checked option in a toggle (a group of radio inputs).
+function choice(name) {
+  return document.querySelector(`input[name="${name}"]:checked`).value;
+}
+
 // Departure time and class change crowds
 
 // The departure time: now, or the day and time in the Leave fields, in this week.
 function departure() {
   const date = new Date();
-  if (ui.leave.value === 'later') {
+  if (choice('leave') === 'later') {
     const [h, m] = (ui.leaveTime.value || '00:00').split(':').map(Number);
     date.setDate(date.getDate() + Number(ui.leaveDay.value) - date.getDay());
     date.setHours(h, m, 0, 0);
@@ -300,7 +306,7 @@ function updateCrowds() {
   const hasZones = state.zones.some((zone) => zone.shares.size > 0);
   syncCrowds();
   ui.crowdHelp.hidden = !hasZones;
-  const when = ui.leave.value === 'now' ? 'now' : 'at this time';
+  const when = choice('leave') === 'now' ? 'now' : 'at this time';
   if (slot) {
     ui.crowdHelp.textContent = `Class change ${when} (${formatMinute(slot[0])}–${formatMinute(slot[1])}). `
       + 'The route avoids the crowded paths where it can. A red or orange outline shows a crowd on the route.';
@@ -339,9 +345,14 @@ function crowdRuns(route) {
 }
 
 function onLeaveChange() {
-  const later = ui.leave.value === 'later';
-  ui.leaveDay.hidden = !later;
-  ui.leaveTime.hidden = !later;
+  const later = choice('leave') === 'later';
+  if (later && !ui.leaveTime.value) {
+    // Start from the current day and time.
+    const now = new Date();
+    ui.leaveDay.value = String(now.getDay());
+    ui.leaveTime.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+  ui.leaveWhen.hidden = !later;
   updateCrowds();
   updateRoute();
 }
@@ -401,7 +412,7 @@ function updateRoute({ fit = false } = {}) {
   }
 
   const route = findRoute(state.graph, from.id, to.id, {
-    w: Number(ui.safety.value),
+    w: Number(choice('route')),
     mode: ui.mode.value,
     traffic: trafficAt(state.zones, departure()),
   });
@@ -499,21 +510,14 @@ function onPick(kind) {
 
 map.on('click', onMapClick);
 ui.mode.addEventListener('change', () => updateRoute());
-ui.safety.addEventListener('input', () => updateRoute());
-ui.leave.addEventListener('change', () => {
-  if (ui.leave.value === 'later' && !ui.leaveTime.value) {
-    const now = new Date();
-    ui.leaveDay.value = String(now.getDay());
-    ui.leaveTime.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  }
-  onLeaveChange();
-});
+ui.routeChoices.forEach((input) => input.addEventListener('change', () => updateRoute()));
+ui.leaveChoices.forEach((input) => input.addEventListener('change', onLeaveChange));
 ui.leaveDay.addEventListener('change', onLeaveChange);
 ui.leaveTime.addEventListener('change', onLeaveChange);
 // With Leave = Now, check each 20 s for the start or the end of a class change.
 // The route changes only then, and not while the app reads the directions aloud.
 setInterval(() => {
-  if (ui.leave.value === 'now' && windowKey(departure()) !== state.crowdWindow) {
+  if (choice('leave') === 'now' && windowKey(departure()) !== state.crowdWindow) {
     updateCrowds();
     if (!state.speaking) {
       updateRoute();

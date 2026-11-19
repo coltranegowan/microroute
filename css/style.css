@@ -233,17 +233,63 @@ select,
   color: var(--muted);
 }
 
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: var(--muted);
+/* A group of radio inputs that looks like a switch with two sides. */
+fieldset.field {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
 }
 
-.slider-row input {
-  flex: 1;
-  accent-color: var(--navy);
+fieldset.field > legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.toggle {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  border: 1px solid var(--navy);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggle label {
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle label + label {
+  border-left: 1px solid var(--navy);
+}
+
+.toggle input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toggle span {
+  display: block;
+  padding: 7px 4px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--navy);
+  background: #ffffff;
+}
+
+.toggle input:checked + span {
+  color: #ffffff;
+  background: var(--navy);
+}
+
+.toggle input:focus-visible + span {
+  outline: 3px solid var(--gold);
+  outline-offset: -3px;
 }
 
 .help {
@@ -323,6 +369,11 @@ select,
 .leave-row {
   display: flex;
   gap: 6px;
+  margin-top: 6px;
+}
+
+.leave-row[hidden] {
+  display: none;
 }
 
 .leave-row select,
