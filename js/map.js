@@ -186,11 +186,11 @@ export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) 
 // The width of a bike lane line at a zoom. Zoomed out, the lines are thin, so
 // they do not cover the streets and the names.
 function bikeWeight(zoom) {
-  if (zoom <= 13) return 1.5;
-  if (zoom <= 14) return 2;
-  if (zoom <= 15) return 2.5;
-  if (zoom <= 16) return 3;
-  if (zoom <= 17) return 4;
+  if (zoom <= 13) return 0.75;
+  if (zoom <= 14) return 1;
+  if (zoom <= 15) return 1.5;
+  if (zoom <= 16) return 2.5;
+  if (zoom <= 17) return 3.5;
   return 5;
 }
 
