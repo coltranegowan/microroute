@@ -25,7 +25,7 @@ const CROWD_COLOR = { high: '#e53935', medium: '#ff9800' };
 
 const BIKE_STYLE = {
   path: { color: '#0b4f9c', pattern: null }, // solid
-  shared_path: { color: '#2f9bf0', pattern: '14 7' }, // long dashes
+  shared_path: { color: '#0288d1', pattern: '14 7' }, // long dashes
   buffered: { color: '#00897b', pattern: '14 5 2 5' }, // dash and dot
   lane: { color: '#7b3fbf', pattern: '5 7' }, // short dashes
   sharrow: { color: '#8d6e63', pattern: '1 9' }, // dots
@@ -175,9 +175,10 @@ export function drawRoute(map, route, { colorblind = false, crowds = [] } = {}) 
   return layer.addTo(map);
 }
 
-// All the bike paths and bike lanes in the graph, as see-through lines under
-// the route, so the streets and the labels show through. A canvas draws the
-// lines faster than SVG.
+// All the bike paths and bike lanes in the graph, as lines under the route.
+// They are almost solid so they show clearly on the gray tiles, and thin when
+// zoomed out so the street names stay readable. A canvas draws the lines
+// faster than SVG.
 //
 // Returns an object:
 //   show(on)                 put the lines on the map, or remove them
@@ -216,7 +217,8 @@ export function createBikeLayer(map, graph, { colorblind = false } = {}) {
         renderer,
         color: BIKE_STYLE[edge.bike].color,
         weight: bikeWeight(map.getZoom()),
-        opacity: 0.55,
+        // 0.9 gives each type a contrast of 3:1 or more on the gray tiles.
+        opacity: 0.9,
         dashArray: colorblind ? BIKE_STYLE[edge.bike].pattern : null,
         interactive: false,
       });
