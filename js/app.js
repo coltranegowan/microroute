@@ -20,7 +20,11 @@ const BIKE_LANES_KEY = 'microroute.bikeLanes';
 // The panel shows the nearest rack to B only if it is closer than this.
 const MAX_RACK_M = 400;
 
-const panel = document.querySelector('.panel');
+const panel = document.querySelector('.panel-stack');
+// The map card starts closed on a phone, so the route card keeps the space.
+if (window.matchMedia('(max-width: 600px)').matches) {
+  document.getElementById('map-card').open = false;
+}
 const area = await loadArea();
 const map = createMap('map', area, panel);
 

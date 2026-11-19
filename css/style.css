@@ -87,6 +87,59 @@ body {
   font-size: 0.9rem;
 }
 
+/* The app has two cards in a column at the right: the route and the map
+   settings. The team tool uses .panel. */
+.panel-stack {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000; /* above the Leaflet panes */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 300px;
+  max-height: calc(100% - 24px);
+}
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  font-size: 0.9rem;
+}
+
+/* The route card scrolls when the directions are long. The map card keeps its size. */
+.route-card {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.map-card {
+  flex: 0 0 auto;
+}
+
+.map-card > summary {
+  padding: 10px 16px;
+  font-weight: 700;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.map-card-body {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 0 16px 12px;
+}
+
+.map-card .legend {
+  margin: 4px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
 .status {
   margin: 0 0 12px;
   font-weight: 600;
@@ -506,29 +559,37 @@ button:disabled {
 
 /* Phone: the panel goes to the bottom of the map. */
 @media (max-width: 600px) {
-  .panel {
+  .panel,
+  .panel-stack {
     top: auto;
     right: 16px;
     bottom: 16px;
     left: 16px;
+    width: auto;
+  }
+
+  .panel {
     display: flex;
     flex-direction: column;
-    width: auto;
     max-height: 45%;
+  }
+
+  /* The map card starts closed on a phone (js/app.js), so the route keeps the space. */
+  .panel-stack {
+    gap: 8px;
+    max-height: 55%;
+  }
+
+  .route-card {
+    display: flex;
+    flex-direction: column;
   }
 
   /* Show the status and the route result first, above the search boxes. */
   .status { order: -2; }
   .summary { order: -1; border-top: 0; padding-top: 0; }
 
-  .legend {
-    display: none;
-  }
-
-  /* A rider in colorblind mode needs the legend to read the patterns. */
-  .colorblind .legend {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 8px;
+  .map-card-body {
+    max-height: 30vh;
   }
 }
