@@ -37,7 +37,9 @@ const BIKE_STYLE = {
 // keeps the area out from under it.
 export function createMap(elementId, area, panel = null) {
   // zoomSnap 0.5 lets the first view fit the area more closely.
-  const map = L.map(elementId, { zoomSnap: 0.5 });
+  const map = L.map(elementId, { zoomSnap: 0.5, zoomControl: false });
+  // The map card is at the top left, so the zoom buttons go to the bottom left.
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -76,22 +78,34 @@ function addAreaMask(map, area) {
 }
 
 // Fit the map to bounds, for example a route, and keep them out from under the panel.
+// panel can also be a list of elements, for example a card at each side.
 export function fitWithPanel(map, bounds, panel, options = {}) {
   map.fitBounds(bounds, { ...panelPadding(map, panel), ...options });
 }
 
 function panelPadding(map, panel) {
-  if (!panel) {
+  const panels = (Array.isArray(panel) ? panel : [panel]).filter(Boolean);
+  if (panels.length === 0) {
     return {};
   }
   const mapBox = map.getContainer().getBoundingClientRect();
-  const box = panel.getBoundingClientRect();
   const gap = 12;
-  // A panel at the bottom of the map (phone layout) takes height. Else it takes width at the right.
-  if (box.width > mapBox.width / 2) {
-    return { paddingTopLeft: [gap, gap], paddingBottomRight: [gap, mapBox.bottom - box.top + gap] };
+  let [left, top, right, bottom] = [gap, gap, gap, gap];
+  for (const element of panels) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0) {
+      continue; // not shown
+    }
+    if (box.width > mapBox.width / 2) {
+      // A wide panel at the bottom (phone layout) takes height.
+      bottom = Math.max(bottom, mapBox.bottom - box.top + gap);
+    } else if (box.left - mapBox.left < mapBox.right - box.right) {
+      left = Math.max(left, box.right - mapBox.left + gap); // a panel at the left
+    } else {
+      right = Math.max(right, mapBox.right - box.left + gap); // a panel at the right
+    }
   }
-  return { paddingTopLeft: [gap, gap], paddingBottomRight: [mapBox.right - box.left + gap, gap] };
+  return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] };
 }
 
 // A draggable marker with a letter, for the start (A) or the end (B).

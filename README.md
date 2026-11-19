@@ -21,7 +21,7 @@ Then open http://localhost:8000. Click the map to set the start (A), then click 
 
 - **Directions:** the panel lists each turn of the route. Click a step to zoom the map to it.
 - **Read directions aloud:** the browser speaks the steps with the Web Speech API. The button does not show in a browser that cannot speak.
-- **Bike racks:** each rack is a navy square with a gold bike, and a locked enclosure has a gold padlock badge. The racks show at zoom 16 and closer. After a route, the racks within 150 m of B show at full size at every zoom, and the nearest one has a gold ring. The panel names that rack, and the spoken directions say it at the end.
+- **Bike racks:** each rack is a navy square with a gold bike, and a locked enclosure has a gold padlock badge. The racks are off at first: turn them on in the **Map** card at the top left. Then they show at zoom 16 and closer. After a route, the racks within 150 m of B show at full size at every zoom, and the nearest one has a gold ring. The panel names that rack, and the spoken directions say it at the end.
 - **CVD (Color Vision Deficiency) mode:** the route, the bike lane layer and the legend show each bike lane type as a line pattern, not only a color. The browser keeps the setting for the next visit.
 
 ## Bike lanes and stress

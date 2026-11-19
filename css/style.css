@@ -87,8 +87,8 @@ body {
   font-size: 0.9rem;
 }
 
-/* The app has two cards in a column at the right: the route and the map
-   settings. The team tool uses .panel. */
+/* The app has the route card at the right and the map card at the top left.
+   The team tool uses .panel. */
 .panel-stack {
   position: absolute;
   top: 12px;
@@ -109,7 +109,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* The route card scrolls when the directions are long. The map card keeps its size. */
+/* The route card scrolls when the directions are long. */
 .route-card {
   flex: 0 1 auto;
   min-height: 0;
@@ -117,8 +117,18 @@ body {
   padding: 14px 16px;
 }
 
+/* The map settings and the key. It closes to a small "Map" button. */
 .map-card {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  width: 260px;
+  max-width: calc(100% - 24px);
+}
+
+.map-card:not([open]) {
+  width: auto;
 }
 
 .map-card > summary {
@@ -129,7 +139,7 @@ body {
 }
 
 .map-card-body {
-  max-height: 40vh;
+  max-height: calc(100vh - 220px);
   overflow-y: auto;
   padding: 0 16px 12px;
 }
@@ -574,10 +584,13 @@ button:disabled {
     max-height: 45%;
   }
 
-  /* The map card starts closed on a phone (js/app.js), so the route keeps the space. */
   .panel-stack {
-    gap: 8px;
-    max-height: 55%;
+    max-height: 50%;
+  }
+
+  /* The map card starts closed on a phone (js/app.js), as a small button at the top left. */
+  .map-card {
+    max-width: calc(100% - 32px);
   }
 
   .route-card {
@@ -590,6 +603,6 @@ button:disabled {
   .summary { order: -1; border-top: 0; padding-top: 0; }
 
   .map-card-body {
-    max-height: 30vh;
+    max-height: 35vh;
   }
 }

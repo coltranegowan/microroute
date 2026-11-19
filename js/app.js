@@ -20,8 +20,9 @@ const BIKE_LANES_KEY = 'microroute.bikeLanes';
 // The panel shows the nearest rack to B only if it is closer than this.
 const MAX_RACK_M = 400;
 
-const panel = document.querySelector('.panel-stack');
-// The map card starts closed on a phone, so the route card keeps the space.
+// The route card at the right and the map card at the left. A route fits between them.
+const panel = [document.querySelector('.panel-stack'), document.getElementById('map-card')];
+// The map card starts closed on a phone, so it does not cover the map.
 if (window.matchMedia('(max-width: 600px)').matches) {
   document.getElementById('map-card').open = false;
 }
@@ -529,7 +530,7 @@ ui.showBikeLanes.addEventListener('change', () => {
   saveSetting(BIKE_LANES_KEY, ui.showBikeLanes.checked);
   state.bikeLanes?.show(ui.showBikeLanes.checked);
 });
-ui.showRacks.checked = loadSetting(RACKS_KEY, true);
+ui.showRacks.checked = loadSetting(RACKS_KEY, false); // off at first, so the map is clear
 ui.showRacks.addEventListener('change', () => {
   saveSetting(RACKS_KEY, ui.showRacks.checked);
   updateRacks();

@@ -99,41 +99,42 @@
 
         <button id="clear" type="button" disabled>Clear route</button>
       </section>
-
-      <details id="map-card" class="card map-card" open>
-        <summary>Map</summary>
-        <div class="map-card-body">
-          <label class="check">
-            <input id="show-bike-lanes" type="checkbox" checked>
-            Bike paths and bike lanes
-          </label>
-
-          <label class="check">
-            <input id="show-racks" type="checkbox" checked>
-            Bike racks and locked enclosures
-          </label>
-          <p id="racks-help" class="help racks-help" hidden>Zoom in to see all the racks.</p>
-
-          <label class="check">
-            <input id="colorblind" type="checkbox">
-            CVD (Color Vision Deficiency) mode: show the bike lane types as line patterns
-          </label>
-
-          <ul class="legend" aria-label="Map key">
-            <li><span class="swatch path"></span>Bike path, no cars</li>
-            <li><span class="swatch shared_path"></span>Path shared with people on foot</li>
-            <li><span class="swatch buffered"></span>Bike lane with a buffer</li>
-            <li><span class="swatch lane"></span>Painted bike lane</li>
-            <li><span class="swatch sharrow"></span>Sharrow: share the car lane</li>
-            <li><span class="swatch none"></span>No bike lane (route only)</li>
-            <li><span class="legend-rack" data-kind="rack"></span>Bike rack</li>
-            <li><span class="legend-rack" data-kind="enclosure"></span>Locked bike enclosure</li>
-            <li class="crowd-key" data-level="high" hidden><span class="swatch crowd high"></span>Route outline: very crowded at class change</li>
-            <li class="crowd-key" data-level="medium" hidden><span class="swatch crowd medium"></span>Route outline: crowded at class change</li>
-          </ul>
-        </div>
-      </details>
     </div>
+
+    <details id="map-card" class="card map-card" open>
+      <summary>Map</summary>
+      <div class="map-card-body">
+        <label class="check">
+          <input id="show-bike-lanes" type="checkbox" checked>
+          Bike paths and bike lanes
+        </label>
+
+        <label class="check">
+          <input id="show-racks" type="checkbox" checked>
+          Bike racks and locked enclosures
+        </label>
+        <p id="racks-help" class="help racks-help" hidden>Zoom in to see all the racks.</p>
+
+        <label class="check">
+          <input id="colorblind" type="checkbox">
+          CVD (Color Vision Deficiency) mode: show the bike lane types as line patterns
+        </label>
+
+        <ul class="legend" aria-label="Map key">
+          <li><span class="swatch path"></span>Bike path, no cars</li>
+          <li><span class="swatch shared_path"></span>Path shared with people on foot</li>
+          <li><span class="swatch buffered"></span>Bike lane with a buffer</li>
+          <li><span class="swatch lane"></span>Painted bike lane</li>
+          <li><span class="swatch sharrow"></span>Sharrow: share the car lane</li>
+          <li><span class="swatch none"></span>No bike lane (route only)</li>
+          <li><span class="legend-rack" data-kind="rack"></span>Bike rack</li>
+          <li><span class="legend-rack" data-kind="enclosure"></span>Locked bike enclosure</li>
+          <li class="crowd-key" data-level="high" hidden><span class="swatch crowd high"></span>Route outline: very crowded at class change</li>
+          <li class="crowd-key" data-level="medium" hidden><span class="swatch crowd medium"></span>Route outline: crowded at class change</li>
+        </ul>
+      </div>
+    </details>
+
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
