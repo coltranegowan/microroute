@@ -99,31 +99,40 @@ def _first(value):
 
 
 def remove_walks_along_roads(graph):
+    """Remove the walkways along roads. graph must not be simplified yet, so
+    each edge belongs to one OSM way and a crosswalk is never joined to the
+    sidewalk next to it. The test is for each OSM way, not for each edge."""
     projected = ox.project_graph(graph)
-    def line(u, v, d):
-        if "geometry" in d:
-            return d["geometry"]
+    def line(u, v):
         return LineString([(projected.nodes[u]["x"], projected.nodes[u]["y"]),
                            (projected.nodes[v]["x"], projected.nodes[v]["y"])])
-    roads = [line(u, v, d) for u, v, d in projected.edges(data=True) if _first(d.get("highway")) in CAR_ROADS]
+    roads = [line(u, v) for u, v, d in projected.edges(data=True) if _first(d.get("highway")) in CAR_ROADS]
     near_roads = unary_union(roads).buffer(ALONG_ROAD_M)
-    along = []
+    ways = {}
     for u, v, k, d in projected.edges(keys=True, data=True):
-        if bike_type(d) != "shared_path" or "crossing" in str(d.get("footway")) or d["length"] <= ALONG_ROAD_MIN_M:
+        if bike_type(d) == "shared_path" and d.get("footway") != "crossing":
+            ways.setdefault(d["osmid"], []).append((u, v, k))
+    along = []
+    for edges in ways.values():
+        lines = [line(u, v) for u, v, _ in edges]
+        length = sum(part.length for part in lines)
+        if length <= 2 * ALONG_ROAD_MIN_M:  # each way is in the graph two times, one for each direction
             continue
-        geometry = line(u, v, d)
-        if geometry.intersection(near_roads).length >= ALONG_ROAD_SHARE * geometry.length:
-            along.append((u, v, k))
+        if sum(part.intersection(near_roads).length for part in lines) >= ALONG_ROAD_SHARE * length:
+            along.extend(edges)
     graph.remove_edges_from(along)
-    print(f"Removed {len(along)} walkway edges that run along a road")
+    graph.remove_nodes_from([n for n in list(graph.nodes) if graph.degree(n) == 0])
+    print(f"Removed {len(along)} walkway segments that run along a road")
 
 
 def download():
     ox.settings.useful_tags_way = list(dict.fromkeys(ox.settings.useful_tags_way + EXTRA_TAGS))
     ox.settings.cache_folder = str(ROOT / "cache")
-    graph = ox.graph_from_polygon(load_area(), custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES])
+    # Not simplified at first, so the removals below see each OSM way alone.
+    graph = ox.graph_from_polygon(load_area(), custom_filter=[BIKE_FILTER, FOOTWAYS_FOR_BIKES], simplify=False)
     remove_sidewalks_off_campus(graph)
     remove_walks_along_roads(graph)
+    graph = ox.simplify_graph(graph)
     # Keep only the part where every node can reach every other node.
     # Otherwise A* can start in a piece that has no route out.
     return ox.truncate.largest_component(graph, strongly=True)
